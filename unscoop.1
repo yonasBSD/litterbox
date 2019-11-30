@@ -1,0 +1,49 @@
+.Dd November 29, 2019
+.Dt UNSCOOP 1
+.Os
+.
+.Sh NAME
+.Nm unscoop
+.Nd import IRC logs
+.
+.Sh SYNOPSIS
+.Nm
+.Op Fl C Ar context
+.Op Fl N Ar network
+.Op Fl f Ar format
+.Ar
+.
+.Sh DESCRIPTION
+The
+.Nm
+utility imports IRC logs into the
+.Xr litterbox 1
+database.
+.
+.Pp
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar context
+Set the channel or query name of the imported logs.
+.It Fl N Ar network
+Set the network name of the imported logs.
+.It Fl f Ar format
+Set the input log format.
+The following formats are supported:
+.Sy textual .
+.El
+.
+.Sh SEE ALSO
+.Xr litterbox 1 ,
+.Xr scoop 1
+.
+.Sh AUTHORS
+.An June Bug Aq Mt june@causal.agency
+.
+.Sh BUGS
+Send mail to
+.Aq Mt june@causal.agency
+or join
+.Li #ascii.town
+on
+.Li chat.freenode.net .
