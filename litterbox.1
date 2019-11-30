@@ -1,0 +1,131 @@
+.Dd November 29, 2019
+.Dt LITTERBOX 1
+.Os
+.
+.Sh NAME
+.Nm litterbox
+.Nd IRC logger
+.
+.Sh SYNOPSIS
+.Nm
+.Op Fl h Ar host
+.Op Fl j Ar join
+.Op Fl n Ar nick
+.Op Fl p Ar port
+.Op Fl u Ar user
+.Op Fl w Ar pass
+.Op Ar path
+.
+.Nm
+.Fl i | m
+.Op Ar path
+.
+.Sh DESCRIPTION
+The
+.Nm
+daemon logs IRC activity to a database
+which may be queried with
+.Xr scoop 1 .
+.
+.Pp
+The arguments are as follows:
+.
+.Bl -tag -width "-h host"
+.It Fl h Ar host
+Connect to
+.Ar host .
+.
+.It Fl i
+Initialize the database.
+.
+.It Fl j Ar join
+Join the comma-separated list of channels
+.Ar join .
+.
+.It Fl m
+Migrate the database to the latest version.
+.
+.It Fl n Ar nick
+Set the nickname to
+.Ar nick .
+The default nickname is
+.Dq litterbox .
+.
+.It Fl p Ar port
+Connect to
+.Ar port .
+The default port is 6697.
+.
+.It Fl u Ar user
+Set the username to
+.Ar user .
+The default username is the same as the nickname.
+.
+.It Fl w Ar pass
+Log in with the server password
+.Ar pass .
+.
+.It Ar path
+The path to the database file.
+The database must be initialized with
+.Fl i .
+See
+.Sx FILES
+for the default path.
+.El
+.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $XDG_DATA_DIRS/litterbox/database.sqlite
+The database file is searched for first in
+.Ev $XDG_DATA_HOME ,
+usually
+.Pa ~/.local/share ,
+followed by the colon-separated list of paths
+.Ev $XDG_DATA_DIRS ,
+usually
+.Pa /usr/local/share:/usr/share .
+.It Pa ~/.local/share/litterbox/database.sqlite
+The most likely path to the database file.
+.El
+.
+.Sh SEE ALSO
+.Xr scoop 1
+.
+.Sh STANDARDS
+The
+.Nm
+daemon implements the following:
+.
+.Bl -item
+.It
+.Rs
+.%A Waldo Bastian
+.%A Ryan Lortie
+.%A Lennart Poettering
+.%T XDG Base Directory Specification
+.%D November 24, 2010
+.%U https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+.Re
+.
+.It
+.Rs
+.%A C. Kalt
+.%T Internet Relay Chat: Client Protocol
+.%I IETF
+.%N RFC 2812
+.%D April 2000
+.%U https://tools.ietf.org/html/rfc2812
+.Re
+.El
+.
+.Sh AUTHORS
+.An June Bug Aq Mt june@causal.agency
+.
+.Sh BUGS
+Send mail to
+.Aq Mt june@causal.agency
+or join
+.Li #ascii.town
+on
+.Li chat.freenode.net .
