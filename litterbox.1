@@ -1,4 +1,4 @@
-.Dd November 29, 2019
+.Dd December 1, 2019
 .Dt LITTERBOX 1
 .Os
 .
@@ -76,7 +76,7 @@ for the default path.
 .
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa $XDG_DATA_DIRS/litterbox/database.sqlite
+.It Pa $XDG_DATA_DIRS/litterbox/litterbox.sqlite
 The database file is searched for first in
 .Ev $XDG_DATA_HOME ,
 usually
@@ -85,7 +85,7 @@ followed by the colon-separated list of paths
 .Ev $XDG_DATA_DIRS ,
 usually
 .Pa /usr/local/share:/usr/share .
-.It Pa ~/.local/share/litterbox/database.sqlite
+.It Pa ~/.local/share/litterbox/litterbox.sqlite
 The most likely path to the database file.
 .El
 .

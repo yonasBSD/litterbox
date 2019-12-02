@@ -24,7 +24,7 @@
 #include <sys/stat.h>
 #include <sysexits.h>
 
-#define DATABASE_PATH "litterbox/database.sqlite"
+#define DATABASE_PATH "litterbox/litterbox.sqlite"
 
 static inline sqlite3 *dbOpenPath(char *path, int flags) {
 	char *base = strrchr(path, '/');
