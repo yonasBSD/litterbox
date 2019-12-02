@@ -16,13 +16,49 @@
 
 #include <err.h>
 #include <sqlite3.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include "database.h"
 
-int main(void) {
-	sqlite3 *db = dbOpen(SQLITE_OPEN_READWRITE);
-	printf("%p\n", (void *)db);
+int main(int argc, char *argv[]) {
+	bool init = false;
+	bool migrate = false;
+
+	int opt;
+	while (0 < (opt = getopt(argc, argv, "im"))) {
+		switch (opt) {
+			break; case 'i': init = true;
+			break; case 'm': migrate = true;
+			break; default:  return EX_USAGE;
+		}
+	}
+
+	int flags = SQLITE_OPEN_READWRITE;
+	if (init) flags |= SQLITE_OPEN_CREATE;
+
+	sqlite3 *db;
+	if (optind < argc) {
+		db = dbOpen(argv[optind], flags);
+	} else {
+		db = dbFind(flags);
+	}
+	if (!db) errx(EX_NOINPUT, "database not found");
+
+	if (init) {
+		dbInit(db);
+		return EX_OK;
+	}
+	if (migrate) {
+		dbMigrate(db);
+		return EX_OK;
+	}
+
+	int version = dbVersion(db);
+	if (version != DatabaseVersion) {
+		errx(EX_CONFIG, "database needs migration");
+	}
 }

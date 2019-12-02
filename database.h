@@ -26,7 +26,20 @@
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 
-static inline sqlite3 *dbOpenPath(char *path, int flags) {
+enum { DatabaseVersion = 0 };
+
+enum Type {
+	Privmsg,
+	Notice,
+	Join,
+	Part,
+	Kick,
+	Quit,
+	Nick,
+	Topic,
+};
+
+static inline sqlite3 *dbOpen(char *path, int flags) {
 	char *base = strrchr(path, '/');
 	if (flags & SQLITE_OPEN_CREATE && base) {
 		*base = '\0';
@@ -44,7 +57,7 @@ static inline sqlite3 *dbOpenPath(char *path, int flags) {
 	errx(EX_NOINPUT, "%s: %s", path, sqlite3_errmsg(db));
 }
 
-static inline sqlite3 *dbOpen(int flags) {
+static inline sqlite3 *dbFind(int flags) {
 	const char *home = getenv("HOME");
 	const char *dataHome = getenv("XDG_DATA_HOME");
 	const char *dataDirs = getenv("XDG_DATA_DIRS");
@@ -56,17 +69,90 @@ static inline sqlite3 *dbOpen(int flags) {
 		if (!home) errx(EX_CONFIG, "HOME unset");
 		snprintf(path, sizeof(path), "%s/.local/share/" DATABASE_PATH, home);
 	}
-	sqlite3 *db = dbOpenPath(path, flags);
+	sqlite3 *db = dbOpen(path, flags);
 	if (db) return db;
 
 	if (!dataDirs) dataDirs = "/usr/local/share:/usr/share";
 	while (*dataDirs) {
 		size_t len = strcspn(dataDirs, ":");
 		snprintf(path, sizeof(path), "%.*s/" DATABASE_PATH, (int)len, dataDirs);
-		db = dbOpenPath(path, flags);
+		db = dbOpen(path, flags);
 		if (db) return db;
 		dataDirs += len;
 		if (*dataDirs) dataDirs++;
 	}
 	return NULL;
+}
+
+static inline int dbVersion(sqlite3 *db) {
+	sqlite3_stmt *stmt;
+	int error = sqlite3_prepare_v2(db, "PRAGMA user_version;", -1, &stmt, NULL);
+	if (error) errx(EX_SOFTWARE, "sqlite3_prepare_v2: %s", sqlite3_errmsg(db));
+
+	error = sqlite3_step(stmt);
+	if (error != SQLITE_ROW) {
+		errx(EX_SOFTWARE, "sqlite3_step: %s", sqlite3_errmsg(db));
+	}
+	int version = sqlite3_column_int(stmt, 0);
+
+	sqlite3_finalize(stmt);
+	return version;
+}
+
+static const char *InitSQL = {
+	"BEGIN TRANSACTION;"
+	"CREATE TABLE networks ("
+		"id INTEGER PRIMARY KEY,"
+		"name TEXT NOT NULL UNIQUE"
+	");"
+	"CREATE TABLE contexts ("
+		"id INTEGER PRIMARY KEY,"
+		"networkID INTEGER NOT NULL REFERENCES networks,"
+		"name TEXT NOT NULL,"
+		"query BOOLEAN NOT NULL,"
+		"UNIQUE (networkID, name)"
+	");"
+	"CREATE TABLE names ("
+		"id INTEGER PRIMARY KEY,"
+		"nick TEXT NOT NULL,"
+		"user TEXT,"
+		"host TEXT,"
+		"UNIQUE (nick, user, host)"
+	");"
+	"CREATE TABLE events ("
+		"id INTEGER PRIMARY KEY,"
+		"time DATETIME NOT NULL,"
+		"type INTEGER NOT NULL,"
+		"contextID INTEGER NOT NULL REFERENCES contexts,"
+		"nameID INTEGER NOT NULL REFERENCES names,"
+		"target TEXT,"
+		"message TEXT"
+	");"
+	// TODO: Create other indexes on events?
+	"CREATE VIRTUAL TABLE search USING fts5 ("
+		"message,"
+		"content = events,"
+		"content_rowid = id,"
+		"tokenize = 'porter'"
+	");"
+	"CREATE TRIGGER eventsInsert AFTER INSERT ON events BEGIN"
+	" INSERT INTO search (rowid, message) VALUES (new.id, new.message);"
+	"END;"
+	"COMMIT TRANSACTION;"
+};
+
+static inline void dbInit(sqlite3 *db) {
+	int error = sqlite3_exec(db, InitSQL, NULL, NULL, NULL);
+	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+}
+
+static const char *MigrationSQL[] = {
+	NULL,
+};
+
+static inline void dbMigrate(sqlite3 *db) {
+	for (int version = dbVersion(db); version < DatabaseVersion; ++version) {
+		int error = sqlite3_exec(db, MigrationSQL[version], NULL, NULL, NULL);
+		if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+	}
 }
