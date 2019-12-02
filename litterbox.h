@@ -48,15 +48,19 @@ static inline sqlite3 *dbOpen(int flags) {
 	const char *home = getenv("HOME");
 	const char *dataHome = getenv("XDG_DATA_HOME");
 	const char *dataDirs = getenv("XDG_DATA_DIRS");
+
 	char path[PATH_MAX];
 	if (dataHome) {
 		snprintf(path, sizeof(path), "%s/" DATABASE_PATH, dataHome);
 	} else {
+		if (!home) errx(EX_CONFIG, "HOME unset");
 		snprintf(path, sizeof(path), "%s/.local/share/" DATABASE_PATH, home);
 	}
 	sqlite3 *db = dbOpenPath(path, flags);
 	if (db) return db;
-	while (dataDirs && *dataDirs) {
+
+	if (!dataDirs) dataDirs = "/usr/local/share:/usr/share";
+	while (*dataDirs) {
 		size_t len = strcspn(dataDirs, ":");
 		snprintf(path, sizeof(path), "%.*s/" DATABASE_PATH, (int)len, dataDirs);
 		db = dbOpenPath(path, flags);
