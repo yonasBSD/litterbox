@@ -47,14 +47,19 @@ static inline sqlite3 *dbOpen(char *path, int flags) {
 		if (error && errno != EEXIST) err(EX_CANTCREAT, "%s", path);
 		*base = '/';
 	}
+
 	sqlite3 *db;
 	int error = sqlite3_open_v2(path, &db, flags, NULL);
-	if (!error) return db;
 	if (error == SQLITE_CANTOPEN) {
 		sqlite3_close(db);
 		return NULL;
 	}
-	errx(EX_NOINPUT, "%s: %s", path, sqlite3_errmsg(db));
+	if (error) errx(EX_NOINPUT, "%s: %s", path, sqlite3_errmsg(db));
+
+	error = sqlite3_exec(db, "PRAGMA foreign_keys = true;", NULL, NULL, NULL);
+	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+
+	return db;
 }
 
 static inline sqlite3 *dbFind(int flags) {
