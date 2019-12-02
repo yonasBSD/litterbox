@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <sysexits.h>
 
-#include "litterbox.h"
+#include "database.h"
 
 int main(void) {
 	sqlite3 *db = dbOpen(SQLITE_OPEN_READWRITE);

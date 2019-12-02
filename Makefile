@@ -13,7 +13,7 @@ dev: tags all
 
 all: ${BINS}
 
-${BINS:=.o}: litterbox.h
+${BINS:=.o}: database.h
 
 tags: *.c *.h
 	ctags -w *.c *.h
