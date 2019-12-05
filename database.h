@@ -56,6 +56,8 @@ static inline sqlite3 *dbOpen(char *path, int flags) {
 	}
 	if (error) errx(EX_NOINPUT, "%s: %s", path, sqlite3_errmsg(db));
 
+	sqlite3_busy_timeout(db, 1000);
+
 	error = sqlite3_exec(db, "PRAGMA foreign_keys = true;", NULL, NULL, NULL);
 	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
 
