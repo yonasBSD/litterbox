@@ -5,7 +5,7 @@ CFLAGS += ${LIBS_PREFIX:%=-I%/include}
 LDFLAGS += ${LIBS_PREFIX:%=-L%/lib}
 LDLIBS = -lsqlite3
 
-BINS = litterbox
+BINS = litterbox unscoop
 
 -include config.mk
 
