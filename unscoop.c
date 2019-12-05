@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
 			sizeRead += len;
 			if (100 * sizeRead / sizeTotal != sizePercent) {
 				sizePercent = 100 * sizeRead / sizeTotal;
-				printf("\r%3zu%%", sizePercent);
+				printf("\r%s/%s: %3zu%%", network, context, sizePercent);
 				fflush(stdout);
 			}
 		}
