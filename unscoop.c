@@ -31,9 +31,9 @@
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 struct Matcher {
-	enum Type type;
 	const char *pattern;
 	regex_t regex;
+	enum Type type;
 	size_t time;
 	size_t nick;
 	size_t user;
@@ -42,25 +42,68 @@ struct Matcher {
 	size_t message;
 };
 
-#define WS "[[:blank:]]*"
+#define WS "[[:blank:]]"
 #define PAT_TIME "[[]([^]]+)[]]"
 #define PAT_MODE "[!~&@%+ ]?"
 
 static struct Matcher Generic[] = {
 	{
-		.type = Privmsg,
-		.pattern = "^" PAT_TIME WS "<" PAT_MODE "([^>]+)" ">" WS "(.+)",
-		.time = 1, .nick = 2, .message = 3,
+		"^" PAT_TIME WS "<" PAT_MODE "([^>]+)" ">" WS "(.+)",
+		.type = Privmsg, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		.type = Notice,
-		.pattern = "^" PAT_TIME WS "-" PAT_MODE "([^-]+)" "-" WS "(.+)",
-		.time = 1, .nick = 2, .message = 3,
+		"^" PAT_TIME WS "-" PAT_MODE "([^-]+)" "-" WS "(.+)",
+		.type = Notice, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		.type = Action,
-		.pattern = "^" PAT_TIME WS "[*]" WS PAT_MODE "([^[:blank:]]+)" WS "(.+)",
-		.time = 1, .nick = 2, .message = 3,
+		"^" PAT_TIME WS "[*]" WS PAT_MODE "([^[:blank:]]+)" WS "(.+)",
+		.type = Action, .time = 1, .nick = 2, .message = 3,
+	},
+};
+
+#define PAT_USERHOST "[(]([^@]+)@([^)]+)[)]"
+#define PAT_MESSAGE "[(]([^)]+)[)]"
+
+static struct Matcher Textual[] = {
+	{
+		"^" PAT_TIME " <" PAT_MODE "([^>]+)> (.+)",
+		.type = Privmsg, .time = 1, .nick = 2, .message = 3,
+	},
+	{
+		"^" PAT_TIME " -" PAT_MODE "([^-]+)- (.+)",
+		.type = Notice, .time = 1, .nick = 2, .message = 3,
+	},
+	{
+		"^" PAT_TIME " • ([^:]+): (.+)",
+		.type = Action, .time = 1, .nick = 2, .message = 3,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " joined the channel",
+		.type = Join, .time = 1, .nick = 2, .user = 3, .host = 4,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left the channel$",
+		.type = Part, .time = 1, .nick = 2, .user = 3, .host = 4,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left the channel " PAT_MESSAGE,
+		.type = Part, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 5,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) kicked ([^ ]+) from the channel " PAT_MESSAGE,
+		.type = Kick, .time = 1, .nick = 2, .target = 3, .message = 4,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left IRC " PAT_MESSAGE,
+		.type = Quit, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 5,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) is now known as ([^ ]+)",
+		.type = Nick, .time = 1, .nick = 2, .target = 3,
+	},
+	{
+		"^" PAT_TIME " ([^ ]+) changed the topic to (.+)",
+		.type = Topic, .time = 1, .nick = 2, .message = 3,
 	},
 };
 
@@ -70,6 +113,7 @@ static const struct Format {
 	size_t len;
 } Formats[] = {
 	{ "generic", Generic, ARRAY_LEN(Generic) },
+	{ "textual", Textual, ARRAY_LEN(Textual) },
 };
 
 static const struct Format *formatParse(const char *name) {
