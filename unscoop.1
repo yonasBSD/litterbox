@@ -26,18 +26,30 @@ The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl C Ar context
 Set the channel or query name of the imported logs.
+.
 .It Fl N Ar network
 Set the network name of the imported logs.
+.
 .It Fl d Ar path
 Import into the database at
 .Ar path .
 See
 .Xr litterbox 1
 for the default database path.
+.
 .It Fl f Ar format
 Set the input log format.
 The following formats are supported:
 .Sy generic .
+.Pp
+The
+.Sy generic
+format matches the following:
+.Bd -literal -offset indent
+[timestamp] <nick> privmsg
+[timestamp] -nick- notice
+[timestamp] * nick action
+.Ed
 .El
 .
 .Sh SEE ALSO
