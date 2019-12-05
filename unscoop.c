@@ -187,6 +187,7 @@ int main(int argc, char *argv[]) {
 		FILE *file = fopen(argv[i], "r");
 		if (!file) err(EX_NOINPUT, "%s", argv[i]);
 
+		dbBegin(db);
 		ssize_t len;
 		while (0 < (len = getline(&line, &cap, file))) {
 			for (size_t i = 0; i < format->len; ++i) {
@@ -241,6 +242,7 @@ int main(int argc, char *argv[]) {
 		}
 		if (ferror(file)) err(EX_IOERR, "%s", argv[i]);
 		fclose(file);
+		dbCommit(db);
 	}
 	printf("\n");
 

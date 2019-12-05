@@ -94,6 +94,16 @@ static inline sqlite3 *dbFind(int flags) {
 	return NULL;
 }
 
+static inline void dbBegin(sqlite3 *db) {
+	int error = sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+}
+
+static inline void dbCommit(sqlite3 *db) {
+	int error = sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL);
+	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+}
+
 static inline sqlite3_stmt *
 dbPrepare(sqlite3 *db, unsigned flags, const char *sql) {
 	sqlite3_stmt *stmt;
