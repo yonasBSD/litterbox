@@ -14,10 +14,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <sqlite3.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +32,7 @@ enum { DatabaseVersion = 0 };
 
 enum Type {
 	Privmsg,
+	Action,
 	Notice,
 	Join,
 	Part,
@@ -91,17 +94,46 @@ static inline sqlite3 *dbFind(int flags) {
 	return NULL;
 }
 
-static inline int dbVersion(sqlite3 *db) {
+static inline sqlite3_stmt *
+dbPrepare(sqlite3 *db, unsigned flags, const char *sql) {
 	sqlite3_stmt *stmt;
-	int error = sqlite3_prepare_v2(db, "PRAGMA user_version;", -1, &stmt, NULL);
-	if (error) errx(EX_SOFTWARE, "sqlite3_prepare_v2: %s", sqlite3_errmsg(db));
+	int error = sqlite3_prepare_v3(db, sql, -1, flags, &stmt, NULL);
+	if (error) errx(EX_SOFTWARE, "sqlite3_prepare_v3: %s", sqlite3_errmsg(db));
+	return stmt;
+}
 
-	error = sqlite3_step(stmt);
-	if (error != SQLITE_ROW) {
-		errx(EX_SOFTWARE, "sqlite3_step: %s", sqlite3_errmsg(db));
-	}
+static inline void
+dbBindText(sqlite3_stmt *stmt, int param, const char *text, int len) {
+	int error = sqlite3_bind_text(stmt, param, text, len, NULL);
+	if (!error) return;
+	errx(
+		EX_SOFTWARE, "sqlite3_bind_text: %s",
+		sqlite3_errmsg(sqlite3_db_handle(stmt))
+	);
+}
+
+static inline void dbBindInt(sqlite3_stmt *stmt, int param, int64_t value) {
+	int error = sqlite3_bind_int64(stmt, param, value);
+	if (!error) return;
+	errx(
+		EX_SOFTWARE, "sqlite3_bind_int64: %s",
+		sqlite3_errmsg(sqlite3_db_handle(stmt))
+	);
+}
+
+static inline int dbStep(sqlite3_stmt *stmt) {
+	int error = sqlite3_step(stmt);
+	if (error == SQLITE_ROW || error == SQLITE_DONE) return error;
+	errx(
+		EX_SOFTWARE, "sqlite3_step: %s",
+		sqlite3_errmsg(sqlite3_db_handle(stmt))
+	);
+}
+
+static inline int dbVersion(sqlite3 *db) {
+	sqlite3_stmt *stmt = dbPrepare(db, 0, "PRAGMA user_version;");
+	assert(SQLITE_ROW == dbStep(stmt));
 	int version = sqlite3_column_int(stmt, 0);
-
 	sqlite3_finalize(stmt);
 	return version;
 }
