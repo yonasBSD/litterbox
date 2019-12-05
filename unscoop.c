@@ -158,11 +158,15 @@ int main(int argc, char *argv[]) {
 		"INSERT OR IGNORE INTO names (nick, user, host)"
 		"VALUES ($nick, $user, $host);"
 	);
+	// SQLite expects a colon in the timezone, but ISO8601 does not.
 	sqlite3_stmt *insertEvent = dbPrepare(
 		db, SQLITE_PREPARE_PERSISTENT,
 		"INSERT INTO events (contextID, type, time, nameID, target, message)"
-		"SELECT $contextID, $type, $time, id, $target, $message FROM names"
-		" WHERE nick = $nick AND user = $user AND host = $host;"
+		"SELECT"
+		" $contextID, $type,"
+		" datetime(substr($time, 1, 22) || ':' || substr($time, -2)),"
+		" id, $target, $message"
+		" FROM names WHERE nick = $nick AND user = $user AND host = $host;"
 	);
 	dbBindInt(insertEvent, 1, contextID);
 
@@ -194,7 +198,6 @@ int main(int argc, char *argv[]) {
 				if (error) continue;
 
 				dbBindInt(insertEvent, 2, matcher->type);
-				// FIXME: SQLite doesn't parse ISO8601 timezones.
 				bindMatch(insertEvent, 3, line, match[matcher->time]);
 				if (matcher->target) {
 					bindMatch(insertEvent, 4, line, match[matcher->target]);
