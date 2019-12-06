@@ -177,7 +177,6 @@ static const char *InitSQL = {
 		"target TEXT,"
 		"message TEXT"
 	");"
-	// TODO: Create other indexes on events?
 	"CREATE VIRTUAL TABLE search USING fts5 ("
 		"message,"
 		"content = events,"
@@ -186,6 +185,10 @@ static const char *InitSQL = {
 	");"
 	"CREATE TRIGGER eventsInsert AFTER INSERT ON events BEGIN"
 	" INSERT INTO search (rowid, message) VALUES (new.id, new.message);"
+	"END;"
+	"CREATE TRIGGER eventsDelete AFTER DELETE ON events BEGIN"
+	" INSERT INTO search (search, rowid, message)"
+	" VALUES ('delete', old.id, old.message);"
 	"END;"
 	"COMMIT TRANSACTION;"
 };
