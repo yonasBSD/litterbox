@@ -18,6 +18,7 @@
 #include <err.h>
 #include <regex.h>
 #include <sqlite3.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -171,22 +172,55 @@ bindMatch(sqlite3_stmt *stmt, int param, const char *str, regmatch_t match) {
 
 int main(int argc, char *argv[]) {
 	char *path = NULL;
+	bool dedup = false;
 	const char *network = NULL;
 	const char *context = NULL;
 	const struct Format *format = &Formats[0];
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "C:N:d:f:"))) {
+	while (0 < (opt = getopt(argc, argv, "C:DN:d:f:"))) {
 		switch (opt) {
 			break; case 'C': context = optarg;
+			break; case 'D': dedup = true;
 			break; case 'N': network = optarg;
 			break; case 'd': path = optarg;
 			break; case 'f': format = formatParse(optarg);
 			break; default:  return EX_USAGE;
 		}
 	}
-	if (!network) errx(EX_USAGE, "network required");
-	if (!context) errx(EX_USAGE, "context required");
+	if (!dedup && !network) errx(EX_USAGE, "network required");
+	if (!dedup && !context) errx(EX_USAGE, "context required");
+
+	int flags = SQLITE_OPEN_READWRITE;
+	sqlite3 *db = (path ? dbOpen(path, flags) : dbFind(flags));
+	if (!db) errx(EX_NOINPUT, "database not found");
+
+	if (dbVersion(db) != DatabaseVersion) {
+		errx(EX_CONFIG, "database needs migration");
+	}
+
+	if (dedup) {
+		if (sqlite3_libversion_number() < 3025000) {
+			errx(EX_CONFIG, "SQLite version 3.25.0 or newer required");
+		}
+		int error = sqlite3_exec(
+			db,
+			"WITH potentials AS ("
+			" SELECT events.id, events.id - first_value(events.id) OVER ("
+			"  PARTITION BY time, type, contextID, nick, target, message"
+			"  ORDER BY events.id"
+			" ) AS diff"
+			" FROM events JOIN names ON (names.id = nameID)"
+			"), duplicates AS (SELECT id FROM potentials WHERE diff > 50)"
+			"DELETE FROM events WHERE id IN duplicates;",
+			NULL, NULL, NULL
+		);
+		if (error) {
+			errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+		}
+		printf("deleted %d events\n", sqlite3_changes(db));
+		return EX_OK;
+	}
 
 	for (size_t i = 0; i < format->len; ++i) {
 		struct Matcher *matcher = &format->matchers[i];
@@ -197,14 +231,6 @@ int main(int argc, char *argv[]) {
 		char buf[256];
 		regerror(error, &matcher->regex, buf, sizeof(buf));
 		errx(EX_SOFTWARE, "regcomp: %s: %s", buf, matcher->pattern);
-	}
-
-	int flags = SQLITE_OPEN_READWRITE;
-	sqlite3 *db = (path ? dbOpen(path, flags) : dbFind(flags));
-	if (!db) errx(EX_NOINPUT, "database not found");
-
-	if (dbVersion(db) != DatabaseVersion) {
-		errx(EX_CONFIG, "database needs migration");
 	}
 
 	sqlite3_stmt *insertNetwork = dbPrepare(

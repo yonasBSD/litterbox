@@ -8,11 +8,14 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl C Ar context
-.Op Fl N Ar network
+.Fl C Ar context
+.Fl N Ar network
 .Op Fl d Ar path
 .Op Fl f Ar format
 .Ar
+.Nm
+.Fl D
+.Op Fl d Ar path
 .
 .Sh DESCRIPTION
 The
@@ -26,16 +29,25 @@ The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl C Ar context
 Set the channel or query name of the imported logs.
+Contexts beginning with
+.Sq #
+or
+.Sq &
+are assumed to be channels.
+.
+.It Fl D
+Delete duplicate events caused by overlapping imports.
+This operation requires SQLite version 3.25.0 or newer.
 .
 .It Fl N Ar network
 Set the network name of the imported logs.
 .
 .It Fl d Ar path
-Import into the database at
-.Ar path .
-See
-.Xr litterbox 1
-for the default database path.
+Set the database path.
+The database must have been initialized by
+.Xr litterbox 1 .
+The default path is as in
+.Xr litterbox 1 .
 .
 .It Fl f Ar format
 Set the input log format.
@@ -43,6 +55,8 @@ The following formats are supported:
 .Sy generic ,
 .Sy textual ,
 .Sy catgirl .
+The default format is
+.Sy generic .
 .Pp
 The
 .Sy generic
