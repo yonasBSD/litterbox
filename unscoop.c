@@ -206,13 +206,13 @@ int main(int argc, char *argv[]) {
 		int error = sqlite3_exec(
 			db,
 			"WITH potentials AS ("
-			" SELECT events.id, events.id - first_value(events.id) OVER ("
-			"  PARTITION BY time, type, contextID, nick, target, message"
-			"  ORDER BY events.id"
+			" SELECT event, event - first_value(event) OVER ("
+			"  PARTITION BY time, type, context, nick, target, message"
+			"  ORDER BY event"
 			" ) AS diff"
-			" FROM events JOIN names ON (names.id = nameID)"
-			"), duplicates AS (SELECT id FROM potentials WHERE diff > 50)"
-			"DELETE FROM events WHERE id IN duplicates;",
+			" FROM events JOIN names USING (name)"
+			"), duplicates AS (SELECT event FROM potentials WHERE diff > 50)"
+			"DELETE FROM events WHERE event IN duplicates;",
 			NULL, NULL, NULL
 		);
 		if (error) {
@@ -242,8 +242,8 @@ int main(int argc, char *argv[]) {
 
 	sqlite3_stmt *insertContext = dbPrepare(
 		db, 0,
-		"INSERT OR IGNORE INTO contexts (networkID, name, query)"
-		"SELECT id, $context, $query FROM networks WHERE name = $network;"
+		"INSERT OR IGNORE INTO contexts (network, name, query)"
+		"SELECT network, $context, $query FROM networks WHERE name = $network;"
 	);
 	dbBindText(insertContext, 1, context, -1);
 	dbBindInt(insertContext, 2, context[0] != '#' && context[0] != '&');
@@ -254,8 +254,8 @@ int main(int argc, char *argv[]) {
 	int64_t contextID;
 	sqlite3_stmt *selectContext = dbPrepare(
 		db, 0,
-		"SELECT contexts.id FROM contexts"
-		" JOIN networks ON (networks.id = networkID)"
+		"SELECT context FROM contexts"
+		" JOIN networks USING (network)"
 		" WHERE networks.name = $network AND contexts.name = $context;"
 	);
 	dbBindText(selectContext, 1, network, -1);
@@ -272,11 +272,11 @@ int main(int argc, char *argv[]) {
 	// SQLite expects a colon in the timezone, but ISO8601 does not.
 	sqlite3_stmt *insertEvent = dbPrepare(
 		db, SQLITE_PREPARE_PERSISTENT,
-		"INSERT INTO events (contextID, type, time, nameID, target, message)"
+		"INSERT INTO events (context, type, time, name, target, message)"
 		"SELECT"
-		" $contextID, $type,"
+		" $context, $type,"
 		" datetime(substr($time, 1, 22) || ':' || substr($time, -2)),"
-		" id, $target, $message"
+		" name, $target, $message"
 		" FROM names WHERE nick = $nick AND user = $user AND host = $host;"
 	);
 	dbBindInt(insertEvent, 1, contextID);
