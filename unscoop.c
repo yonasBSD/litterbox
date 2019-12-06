@@ -233,21 +233,14 @@ int main(int argc, char *argv[]) {
 		errx(EX_SOFTWARE, "regcomp: %s: %s", buf, matcher->pattern);
 	}
 
-	sqlite3_stmt *insertNetwork = dbPrepare(
-		db, 0, "INSERT OR IGNORE INTO networks (name) VALUES ($network);"
-	);
-	dbBindText(insertNetwork, 1, network, -1);
-	dbStep(insertNetwork);
-	sqlite3_finalize(insertNetwork);
-
 	sqlite3_stmt *insertContext = dbPrepare(
 		db, 0,
 		"INSERT OR IGNORE INTO contexts (network, name, query)"
-		"SELECT network, $context, $query FROM networks WHERE name = $network;"
+		"VALUES ($network, $context, $query);"
 	);
-	dbBindText(insertContext, 1, context, -1);
-	dbBindInt(insertContext, 2, context[0] != '#' && context[0] != '&');
-	dbBindText(insertContext, 3, network, -1);
+	dbBindText(insertContext, 1, network, -1);
+	dbBindText(insertContext, 2, context, -1);
+	dbBindInt(insertContext, 3, context[0] != '#' && context[0] != '&');
 	dbStep(insertContext);
 	sqlite3_finalize(insertContext);
 
@@ -255,8 +248,7 @@ int main(int argc, char *argv[]) {
 	sqlite3_stmt *selectContext = dbPrepare(
 		db, 0,
 		"SELECT context FROM contexts"
-		" JOIN networks USING (network)"
-		" WHERE networks.name = $network AND contexts.name = $context;"
+		" WHERE network = $network AND name = $context;"
 	);
 	dbBindText(selectContext, 1, network, -1);
 	dbBindText(selectContext, 2, context, -1);

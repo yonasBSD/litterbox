@@ -150,13 +150,9 @@ static inline int dbVersion(sqlite3 *db) {
 
 static const char *InitSQL = {
 	"BEGIN TRANSACTION;"
-	"CREATE TABLE networks ("
-		"network INTEGER PRIMARY KEY,"
-		"name TEXT NOT NULL UNIQUE"
-	");"
 	"CREATE TABLE contexts ("
 		"context INTEGER PRIMARY KEY,"
-		"network INTEGER NOT NULL REFERENCES networks,"
+		"network TEXT NOT NULL,"
 		"name TEXT NOT NULL,"
 		"query BOOLEAN NOT NULL,"
 		"UNIQUE (network, name)"
