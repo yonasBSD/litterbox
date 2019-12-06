@@ -43,62 +43,102 @@ struct Matcher {
 };
 
 #define WS "[[:blank:]]"
-#define PAT_TIME "[[]([^]]+)[]]"
-#define PAT_MODE "[!~&@%+ ]?"
+#define P1_TIME "[[]([^]]+)[]]"
+#define P0_MODE "[!~&@%+ ]?"
 
 static struct Matcher Generic[] = {
 	{
-		"^" PAT_TIME WS "<" PAT_MODE "([^>]+)" ">" WS "(.+)",
+		"^" P1_TIME WS "<" P0_MODE "([^>]+)" ">" WS "(.+)",
 		.type = Privmsg, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		"^" PAT_TIME WS "-" PAT_MODE "([^-]+)" "-" WS "(.+)",
+		"^" P1_TIME WS "-" P0_MODE "([^-]+)" "-" WS "(.+)",
 		.type = Notice, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		"^" PAT_TIME WS "[*]" WS PAT_MODE "([^[:blank:]]+)" WS "(.+)",
+		"^" P1_TIME WS "[*]" WS P0_MODE "([^[:blank:]]+)" WS "(.+)",
 		.type = Action, .time = 1, .nick = 2, .message = 3,
 	},
 };
 
-#define PAT_USERHOST "[(]([^@]+)@([^)]+)[)]"
-#define PAT_MESSAGE "( [(]([^)]+)[)])?"
-
+#define P2_USERHOST "[(]([^@]+)@([^)]+)[)]"
+#define P2_MESSAGE "( [(]([^)]+)[)])?"
 static struct Matcher Textual[] = {
 	{
-		"^" PAT_TIME " <" PAT_MODE "([^>]+)> (.+)",
+		"^" P1_TIME " <" P0_MODE "([^>]+)> (.+)",
 		.type = Privmsg, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		"^" PAT_TIME " -" PAT_MODE "([^-]+)- (.+)",
+		"^" P1_TIME " -" P0_MODE "([^-]+)- (.+)",
 		.type = Notice, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		"^" PAT_TIME " • ([^:]+): (.+)",
+		"^" P1_TIME " • ([^:]+): (.+)",
 		.type = Action, .time = 1, .nick = 2, .message = 3,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " joined the channel",
+		"^" P1_TIME " ([^ ]+) " P2_USERHOST " joined the channel",
 		.type = Join, .time = 1, .nick = 2, .user = 3, .host = 4,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left the channel" PAT_MESSAGE,
+		"^" P1_TIME " ([^ ]+) " P2_USERHOST " left the channel" P2_MESSAGE,
 		.type = Part, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 6,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) kicked ([^ ]+) from the channel" PAT_MESSAGE,
+		"^" P1_TIME " ([^ ]+) kicked ([^ ]+) from the channel" P2_MESSAGE,
 		.type = Kick, .time = 1, .nick = 2, .target = 3, .message = 5,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left IRC" PAT_MESSAGE,
+		"^" P1_TIME " ([^ ]+) " P2_USERHOST " left IRC" P2_MESSAGE,
 		.type = Quit, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 6,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) is now known as ([^ ]+)",
+		"^" P1_TIME " ([^ ]+) is now known as ([^ ]+)",
 		.type = Nick, .time = 1, .nick = 2, .target = 3,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) changed the topic to (.+)",
+		"^" P1_TIME " ([^ ]+) changed the topic to (.+)",
+		.type = Topic, .time = 1, .nick = 2, .message = 3,
+	},
+};
+
+#undef P2_MESSAGE
+#define P2_MESSAGE "(, \"([^\"]+)\")?"
+static struct Matcher Catgirl[] = {
+	{
+		"^" P1_TIME " <([^>]+)> (.+)",
+		.type = Privmsg, .time = 1, .nick = 2, .message = 3,
+	},
+	{
+		"^" P1_TIME " -([^-]+)- (.+)",
+		.type = Notice, .time = 1, .nick = 2, .message = 3,
+	},
+	{
+		"^" P1_TIME " [*] ([^ ]+) (.+)",
+		.type = Action, .time = 1, .nick = 2, .message = 3,
+	},
+	{
+		"^" P1_TIME " ([^ ]+) arrives",
+		.type = Join, .time = 1, .nick = 2,
+	},
+	{
+		"^" P1_TIME " ([^ ]+) leaves [^,]+" P2_MESSAGE,
+		.type = Part, .time = 1, .nick = 2, .message = 4,
+	},
+	{
+		"^" P1_TIME " ([^ ]+) kicks ([^ ]+) out of [^,]+" P2_MESSAGE,
+		.type = Kick, .time = 1, .nick = 2, .target = 3, .message = 5,
+	},
+	{
+		"^" P1_TIME " ([^ ]+) leaves" P2_MESSAGE,
+		.type = Quit, .time = 1, .nick = 2, .message = 4,
+	},
+	{
+		"^" P1_TIME " ([^ ]+) is now known as ([^ ]+)",
+		.type = Nick, .time = 1, .nick = 2, .target = 3,
+	},
+	{
+		"^" P1_TIME " ([^ ]+) places a new sign in [^,]+" P2_MESSAGE,
 		.type = Topic, .time = 1, .nick = 2, .message = 3,
 	},
 };
@@ -110,6 +150,7 @@ static const struct Format {
 } Formats[] = {
 	{ "generic", Generic, ARRAY_LEN(Generic) },
 	{ "textual", Textual, ARRAY_LEN(Textual) },
+	{ "catgirl", Catgirl, ARRAY_LEN(Catgirl) },
 };
 
 static const struct Format *formatParse(const char *name) {
