@@ -62,7 +62,7 @@ static struct Matcher Generic[] = {
 };
 
 #define PAT_USERHOST "[(]([^@]+)@([^)]+)[)]"
-#define PAT_MESSAGE "[(]([^)]+)[)]"
+#define PAT_MESSAGE "( [(]([^)]+)[)])?"
 
 static struct Matcher Textual[] = {
 	{
@@ -82,20 +82,16 @@ static struct Matcher Textual[] = {
 		.type = Join, .time = 1, .nick = 2, .user = 3, .host = 4,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left the channel$",
-		.type = Part, .time = 1, .nick = 2, .user = 3, .host = 4,
+		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left the channel" PAT_MESSAGE,
+		.type = Part, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 6,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left the channel " PAT_MESSAGE,
-		.type = Part, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 5,
+		"^" PAT_TIME " ([^ ]+) kicked ([^ ]+) from the channel" PAT_MESSAGE,
+		.type = Kick, .time = 1, .nick = 2, .target = 3, .message = 5,
 	},
 	{
-		"^" PAT_TIME " ([^ ]+) kicked ([^ ]+) from the channel " PAT_MESSAGE,
-		.type = Kick, .time = 1, .nick = 2, .target = 3, .message = 4,
-	},
-	{
-		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left IRC " PAT_MESSAGE,
-		.type = Quit, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 5,
+		"^" PAT_TIME " ([^ ]+) " PAT_USERHOST " left IRC" PAT_MESSAGE,
+		.type = Quit, .time = 1, .nick = 2, .user = 3, .host = 4, .message = 6,
 	},
 	{
 		"^" PAT_TIME " ([^ ]+) is now known as ([^ ]+)",
@@ -125,7 +121,11 @@ static const struct Format *formatParse(const char *name) {
 
 static void
 bindMatch(sqlite3_stmt *stmt, int param, const char *str, regmatch_t match) {
-	dbBindText(stmt, param, &str[match.rm_so], match.rm_eo - match.rm_so);
+	if (match.rm_so < 0) {
+		dbBindText(stmt, param, NULL, -1);
+	} else {
+		dbBindText(stmt, param, &str[match.rm_so], match.rm_eo - match.rm_so);
+	}
 }
 
 int main(int argc, char *argv[]) {
