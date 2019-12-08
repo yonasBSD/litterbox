@@ -39,106 +39,151 @@ struct Matcher {
 	const char *params[ParamCap];
 };
 
-#define WS "[[:blank:]]"
-#define P1_TIME "[[]([^]]+)[]]"
 #define P0_MODE "[!~&@%+ ]?"
+#define P1_TIME "^[[]([^]]+)[]][ \t]"
 
-static const struct Matcher Generic[] = {
+#define P2_MESSAGE "(, \"([^\"]+)\")?"
+static const struct Matcher Catgirl[] = {
 	{
-		"^" P1_TIME WS "<" P0_MODE "([^>]+)" ">" WS "(.+)",
+		P1_TIME "<([^>]+)> (.+)",
 		Privmsg, { "$time", "$nick", "$message" },
 	},
 	{
-		"^" P1_TIME WS "-" P0_MODE "([^-]+)" "-" WS "(.+)",
+		P1_TIME "-([^-]+)- (.+)",
 		Notice, { "$time", "$nick", "$message" },
 	},
 	{
-		"^" P1_TIME WS "[*]" WS P0_MODE "([^[:blank:]]+)" WS "(.+)",
+		P1_TIME "[*] ([^ ]+) (.+)",
+		Action, { "$time", "$nick", "$message" },
+	},
+	{
+		P1_TIME "([^ ]+) arrives",
+		Join, { "$time", "$nick" },
+	},
+	{
+		P1_TIME "([^ ]+) leaves [^,]+" P2_MESSAGE,
+		Part, { "$time", "$nick", NULL, "$message" },
+	},
+	{
+		P1_TIME "([^ ]+) kicks ([^ ]+) out of [^,]+" P2_MESSAGE,
+		Kick, { "$time", "$nick", "$target", NULL, "$message" },
+	},
+	{
+		P1_TIME "([^ ]+) leaves" P2_MESSAGE,
+		Quit, { "$time", "$nick", NULL, "$message" },
+	},
+	{
+		P1_TIME "([^ ]+) is now known as ([^ ]+)",
+		Nick, { "$time", "$nick", "$target" },
+	},
+	{
+		P1_TIME "([^ ]+) places a new sign in [^,]+" P2_MESSAGE,
+		Topic, { "$time", "$nick", "$message" },
+	},
+};
+#undef P2_MESSAGE
+
+static const struct Matcher Generic[] = {
+	{
+		P1_TIME "<" P0_MODE "([^>]+)>[ \t](.+)",
+		Privmsg, { "$time", "$nick", "$message" },
+	},
+	{
+		P1_TIME "-" P0_MODE "([^-]+)-[ \t](.+)",
+		Notice, { "$time", "$nick", "$message" },
+	},
+	{
+		P1_TIME "[*][ \t]" P0_MODE "([^ \t]+)[ \t](.+)",
 		Action, { "$time", "$nick", "$message" },
 	},
 };
+
+#define P2_TAGS "^@([^;]+;)*time=([^ ;]+)[^ ]* "
+#define P3_ORIGIN ":([^!]+)!([^@]+)@([^ ]+) "
+static const struct Matcher IRC[] = {
+	{
+		P2_TAGS P3_ORIGIN "PRIVMSG [^ ]+ :?\1ACTION ([^\1]+)",
+		Action, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "PRIVMSG [^ ]+ :?(.+)",
+		Privmsg, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "NOTICE [^ ]+ :?(.+)",
+		Notice, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "JOIN [^ ]+",
+		Join, { NULL, "$time", "$nick", "$user", "$host" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "PART [^ ]+ :?(.+)?",
+		Part, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "KICK [^ ]+ ([^ ]+) :?(.+)?",
+		Kick,
+		{ NULL, "$time", "$nick", "$user", "$host", "$target", "$message" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "QUIT( :?(.+))?",
+		Quit, { NULL, "$time", "$nick", "$user", "$host", NULL, "$message" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "NICK :?([^ ]+)",
+		Nick, { NULL, "$time", "$nick", "$user", "$host", "$target" },
+	},
+	{
+		P2_TAGS P3_ORIGIN "TOPIC [^ ]+ :?(.+)",
+		Topic, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+	},
+};
+#undef P2_TAGS
+#undef P3_ORIGIN
 
 #define P2_USERHOST "[(]([^@]+)@([^)]+)[)]"
 #define P2_MESSAGE "( [(]([^)]+)[)])?"
 static const struct Matcher Textual[] = {
 	{
-		"^" P1_TIME " <" P0_MODE "([^>]+)> (.+)",
+		P1_TIME "<" P0_MODE "([^>]+)> (.+)",
 		Privmsg, { "$time", "$nick", "$message" },
 	},
 	{
-		"^" P1_TIME " -" P0_MODE "([^-]+)- (.+)",
+		P1_TIME "-" P0_MODE "([^-]+)- (.+)",
 		Notice, { "$time", "$nick", "$message" },
 	},
 	{
-		"^" P1_TIME " • ([^:]+): (.+)",
+		P1_TIME "• ([^:]+): (.+)",
 		Action, { "$time", "$nick", "$message" },
 	},
 	{
-		"^" P1_TIME " ([^ ]+) " P2_USERHOST " joined the channel",
+		P1_TIME "([^ ]+) " P2_USERHOST " joined the channel",
 		Join, { "$time", "$nick", "$user", "$host" },
 	},
 	{
-		"^" P1_TIME " ([^ ]+) " P2_USERHOST " left the channel" P2_MESSAGE,
+		P1_TIME "([^ ]+) " P2_USERHOST " left the channel" P2_MESSAGE,
 		Part, { "$time", "$nick", "$user", "$host", NULL, "$message" },
 	},
 	{
-		"^" P1_TIME " ([^ ]+) kicked ([^ ]+) from the channel" P2_MESSAGE,
+		P1_TIME "([^ ]+) kicked ([^ ]+) from the channel" P2_MESSAGE,
 		Kick, { "$time", "$nick", "$target", NULL, "$message" },
 	},
 	{
-		"^" P1_TIME " ([^ ]+) " P2_USERHOST " left IRC" P2_MESSAGE,
+		P1_TIME "([^ ]+) " P2_USERHOST " left IRC" P2_MESSAGE,
 		Quit, { "$time", "$nick", "$user", "$host", NULL, "$message" },
 	},
 	{
-		"^" P1_TIME " ([^ ]+) is now known as ([^ ]+)",
+		P1_TIME "([^ ]+) is now known as ([^ ]+)",
 		Nick, { "$time", "$nick", "$target" },
 	},
 	{
-		"^" P1_TIME " ([^ ]+) changed the topic to (.+)",
+		P1_TIME "([^ ]+) changed the topic to (.+)",
 		Topic, { "$time", "$nick", "$message" },
 	},
 };
-
+#undef P2_USERHOST
 #undef P2_MESSAGE
-#define P2_MESSAGE "(, \"([^\"]+)\")?"
-static const struct Matcher Catgirl[] = {
-	{
-		"^" P1_TIME " <([^>]+)> (.+)",
-		Privmsg, { "$time", "$nick", "$message" },
-	},
-	{
-		"^" P1_TIME " -([^-]+)- (.+)",
-		Notice, { "$time", "$nick", "$message" },
-	},
-	{
-		"^" P1_TIME " [*] ([^ ]+) (.+)",
-		Action, { "$time", "$nick", "$message" },
-	},
-	{
-		"^" P1_TIME " ([^ ]+) arrives",
-		Join, { "$time", "$nick" },
-	},
-	{
-		"^" P1_TIME " ([^ ]+) leaves [^,]+" P2_MESSAGE,
-		Part, { "$time", "$nick", NULL, "$message" },
-	},
-	{
-		"^" P1_TIME " ([^ ]+) kicks ([^ ]+) out of [^,]+" P2_MESSAGE,
-		Kick, { "$time", "$nick", "$target", NULL, "$message" },
-	},
-	{
-		"^" P1_TIME " ([^ ]+) leaves" P2_MESSAGE,
-		Quit, { "$time", "$nick", NULL, "$message" },
-	},
-	{
-		"^" P1_TIME " ([^ ]+) is now known as ([^ ]+)",
-		Nick, { "$time", "$nick", "$target" },
-	},
-	{
-		"^" P1_TIME " ([^ ]+) places a new sign in [^,]+" P2_MESSAGE,
-		Topic, { "$time", "$nick", "$message" },
-	},
-};
 
 static const struct Format {
 	const char *name;
@@ -146,8 +191,10 @@ static const struct Format {
 	size_t len;
 } Formats[] = {
 	{ "generic", Generic, ARRAY_LEN(Generic) },
-	{ "textual", Textual, ARRAY_LEN(Textual) },
+
 	{ "catgirl", Catgirl, ARRAY_LEN(Catgirl) },
+	{ "irc", IRC, ARRAY_LEN(IRC) },
+	{ "textual", Textual, ARRAY_LEN(Textual) },
 };
 
 static const struct Format *formatParse(const char *name) {
@@ -182,7 +229,10 @@ static void prepareInsert(sqlite3 *db) {
 		"INSERT INTO events (context, type, time, name, target, message)"
 		"SELECT"
 		" $context, $type,"
-		" datetime(substr($time, 1, 22) || ':' || substr($time, -2)),"
+		" CASE"
+		"  WHEN $time LIKE '%Z' THEN datetime($time)"
+		"  ELSE datetime(substr($time, 1, 22) || ':' || substr($time, -2))"
+		" END,"
 		" name, $target, $message"
 		" FROM names"
 		" WHERE nick = $nick"
