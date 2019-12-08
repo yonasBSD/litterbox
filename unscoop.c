@@ -201,6 +201,8 @@ static void matchLine(
 		int error = regexec(&regex[i], line, ParamCap, match, 0);
 		if (error) continue;
 
+		sqlite3_reset(insertName);
+		sqlite3_reset(insertEvent);
 		sqlite3_clear_bindings(insertName);
 		sqlite3_clear_bindings(insertEvent);
 
@@ -219,8 +221,7 @@ static void matchLine(
 
 		dbStep(insertName);
 		dbStep(insertEvent);
-		sqlite3_reset(insertName);
-		sqlite3_reset(insertEvent);
+		break;
 	}
 }
 
