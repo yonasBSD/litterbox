@@ -118,13 +118,15 @@ static const struct Matcher IRC[] = {
 		Join, { NULL, "$time", "$nick", "$user", "$host" },
 	},
 	{
-		P2_TAGS P3_ORIGIN "PART [^ ]+ :?(.+)?",
-		Part, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+		P2_TAGS P3_ORIGIN "PART [^ ]+( :?(.+))?",
+		Part, { NULL, "$time", "$nick", "$user", "$host", NULL, "$message" },
 	},
 	{
-		P2_TAGS P3_ORIGIN "KICK [^ ]+ ([^ ]+) :?(.+)?",
-		Kick,
-		{ NULL, "$time", "$nick", "$user", "$host", "$target", "$message" },
+		P2_TAGS P3_ORIGIN "KICK [^ ]+ ([^ ]+)( :?(.+))?",
+		Kick, {
+			NULL, "$time", "$nick", "$user", "$host", "$target",
+			NULL, "$message"
+		},
 	},
 	{
 		P2_TAGS P3_ORIGIN "QUIT( :?(.+))?",
@@ -135,8 +137,8 @@ static const struct Matcher IRC[] = {
 		Nick, { NULL, "$time", "$nick", "$user", "$host", "$target" },
 	},
 	{
-		P2_TAGS P3_ORIGIN "TOPIC [^ ]+ :?(.+)",
-		Topic, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+		P2_TAGS P3_ORIGIN "TOPIC [^ ]+( :?(.+))?",
+		Topic, { NULL, "$time", "$nick", "$user", "$host", NULL, "$message" },
 	},
 };
 #undef P2_TAGS
