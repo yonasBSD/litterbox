@@ -28,6 +28,8 @@
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 
+#define SQL(...) #__VA_ARGS__
+
 enum { DatabaseVersion = 0 };
 
 enum Type {
@@ -61,7 +63,7 @@ static inline sqlite3 *dbOpen(char *path, int flags) {
 
 	sqlite3_busy_timeout(db, 1000);
 
-	error = sqlite3_exec(db, "PRAGMA foreign_keys = true;", NULL, NULL, NULL);
+	error = sqlite3_exec(db, SQL(PRAGMA foreign_keys = true;), NULL, NULL, NULL);
 	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
 
 	return db;
@@ -95,12 +97,12 @@ static inline sqlite3 *dbFind(int flags) {
 }
 
 static inline void dbBegin(sqlite3 *db) {
-	int error = sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+	int error = sqlite3_exec(db, SQL(BEGIN TRANSACTION;), NULL, NULL, NULL);
 	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
 }
 
 static inline void dbCommit(sqlite3 *db) {
-	int error = sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL);
+	int error = sqlite3_exec(db, SQL(COMMIT TRANSACTION;), NULL, NULL, NULL);
 	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
 }
 
@@ -141,53 +143,53 @@ static inline int dbStep(sqlite3_stmt *stmt) {
 }
 
 static inline int dbVersion(sqlite3 *db) {
-	sqlite3_stmt *stmt = dbPrepare(db, 0, "PRAGMA user_version;");
+	sqlite3_stmt *stmt = dbPrepare(db, 0, SQL(PRAGMA user_version;));
 	assert(SQLITE_ROW == dbStep(stmt));
 	int version = sqlite3_column_int(stmt, 0);
 	sqlite3_finalize(stmt);
 	return version;
 }
 
-static const char *InitSQL = {
-	"BEGIN TRANSACTION;"
-	"CREATE TABLE contexts ("
-		"context INTEGER PRIMARY KEY,"
-		"network TEXT NOT NULL,"
-		"name TEXT NOT NULL,"
-		"query BOOLEAN NOT NULL,"
-		"UNIQUE (network, name)"
-	");"
-	"CREATE TABLE names ("
-		"name INTEGER PRIMARY KEY,"
-		"nick TEXT NOT NULL,"
-		"user TEXT NOT NULL,"
-		"host TEXT NOT NULL,"
-		"UNIQUE (nick, user, host)"
-	");"
-	"CREATE TABLE events ("
-		"event INTEGER PRIMARY KEY,"
-		"time DATETIME NOT NULL,"
-		"type INTEGER NOT NULL,"
-		"context INTEGER NOT NULL REFERENCES contexts,"
-		"name INTEGER NOT NULL REFERENCES names,"
-		"target TEXT,"
-		"message TEXT"
-	");"
-	"CREATE VIRTUAL TABLE search USING fts5 ("
-		"message,"
-		"content = events,"
-		"content_rowid = event,"
-		"tokenize = 'porter'"
-	");"
-	"CREATE TRIGGER eventsInsert AFTER INSERT ON events BEGIN"
-	" INSERT INTO search (rowid, message) VALUES (new.event, new.message);"
-	"END;"
-	"CREATE TRIGGER eventsDelete AFTER DELETE ON events BEGIN"
-	" INSERT INTO search (search, rowid, message)"
-	" VALUES ('delete', old.event, old.message);"
-	"END;"
-	"COMMIT TRANSACTION;"
-};
+static const char *InitSQL = SQL(
+	BEGIN TRANSACTION;
+	CREATE TABLE contexts (
+		context INTEGER PRIMARY KEY,
+		network TEXT NOT NULL,
+		name TEXT NOT NULL,
+		query BOOLEAN NOT NULL,
+		UNIQUE (network, name)
+	);
+	CREATE TABLE names (
+		name INTEGER PRIMARY KEY,
+		nick TEXT NOT NULL,
+		user TEXT NOT NULL,
+		host TEXT NOT NULL,
+		UNIQUE (nick, user, host)
+	);
+	CREATE TABLE events (
+		event INTEGER PRIMARY KEY,
+		time DATETIME NOT NULL,
+		type INTEGER NOT NULL,
+		context INTEGER NOT NULL REFERENCES contexts,
+		name INTEGER NOT NULL REFERENCES names,
+		target TEXT,
+		message TEXT
+	);
+	CREATE VIRTUAL TABLE search USING fts5 (
+		message,
+		content = events,
+		content_rowid = event,
+		tokenize = 'porter'
+	);
+	CREATE TRIGGER eventsInsert AFTER INSERT ON events BEGIN
+		INSERT INTO search (rowid, message) VALUES (new.event, new.message);
+	END;
+	CREATE TRIGGER eventsDelete AFTER DELETE ON events BEGIN
+		INSERT INTO search (search, rowid, message)
+		VALUES ('delete', old.event, old.message);
+	END;
+	COMMIT TRANSACTION;
+);
 
 static inline void dbInit(sqlite3 *db) {
 	int error = sqlite3_exec(db, InitSQL, NULL, NULL, NULL);

@@ -46,39 +46,39 @@ struct Matcher {
 static const struct Matcher Catgirl[] = {
 	{
 		P1_TIME "<([^>]+)> (.+)",
-		Privmsg, { "$time", "$nick", "$message" },
+		Privmsg, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "-([^-]+)- (.+)",
-		Notice, { "$time", "$nick", "$message" },
+		Notice, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "[*] ([^ ]+) (.+)",
-		Action, { "$time", "$nick", "$message" },
+		Action, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) arrives",
-		Join, { "$time", "$nick" },
+		Join, { ":time", ":nick" },
 	},
 	{
 		P1_TIME "([^ ]+) leaves [^,]+" P2_MESSAGE,
-		Part, { "$time", "$nick", NULL, "$message" },
+		Part, { ":time", ":nick", NULL, ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) kicks ([^ ]+) out of [^,]+" P2_MESSAGE,
-		Kick, { "$time", "$nick", "$target", NULL, "$message" },
+		Kick, { ":time", ":nick", ":target", NULL, ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) leaves" P2_MESSAGE,
-		Quit, { "$time", "$nick", NULL, "$message" },
+		Quit, { ":time", ":nick", NULL, ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) is now known as ([^ ]+)",
-		Nick, { "$time", "$nick", "$target" },
+		Nick, { ":time", ":nick", ":target" },
 	},
 	{
 		P1_TIME "([^ ]+) places a new sign in [^,]+" P2_MESSAGE,
-		Topic, { "$time", "$nick", "$message" },
+		Topic, { ":time", ":nick", ":message" },
 	},
 };
 #undef P2_MESSAGE
@@ -86,15 +86,15 @@ static const struct Matcher Catgirl[] = {
 static const struct Matcher Generic[] = {
 	{
 		P1_TIME "<" P0_MODE "([^>]+)>[ \t](.+)",
-		Privmsg, { "$time", "$nick", "$message" },
+		Privmsg, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "-" P0_MODE "([^-]+)-[ \t](.+)",
-		Notice, { "$time", "$nick", "$message" },
+		Notice, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "[*][ \t]" P0_MODE "([^ \t]+)[ \t](.+)",
-		Action, { "$time", "$nick", "$message" },
+		Action, { ":time", ":nick", ":message" },
 	},
 };
 
@@ -103,42 +103,42 @@ static const struct Matcher Generic[] = {
 static const struct Matcher IRC[] = {
 	{
 		P2_TAGS P3_ORIGIN "PRIVMSG [^ ]+ :?\1ACTION ([^\1]+)",
-		Action, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+		Action, { NULL, ":time", ":nick", ":user", ":host", ":message" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "PRIVMSG [^ ]+ :?(.+)",
-		Privmsg, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+		Privmsg, { NULL, ":time", ":nick", ":user", ":host", ":message" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "NOTICE [^ ]+ :?(.+)",
-		Notice, { NULL, "$time", "$nick", "$user", "$host", "$message" },
+		Notice, { NULL, ":time", ":nick", ":user", ":host", ":message" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "JOIN [^ ]+",
-		Join, { NULL, "$time", "$nick", "$user", "$host" },
+		Join, { NULL, ":time", ":nick", ":user", ":host" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "PART [^ ]+( :?(.+))?",
-		Part, { NULL, "$time", "$nick", "$user", "$host", NULL, "$message" },
+		Part, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "KICK [^ ]+ ([^ ]+)( :?(.+))?",
 		Kick, {
-			NULL, "$time", "$nick", "$user", "$host", "$target",
-			NULL, "$message"
+			NULL, ":time", ":nick", ":user", ":host", ":target",
+			NULL, ":message"
 		},
 	},
 	{
 		P2_TAGS P3_ORIGIN "QUIT( :?(.+))?",
-		Quit, { NULL, "$time", "$nick", "$user", "$host", NULL, "$message" },
+		Quit, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "NICK :?([^ ]+)",
-		Nick, { NULL, "$time", "$nick", "$user", "$host", "$target" },
+		Nick, { NULL, ":time", ":nick", ":user", ":host", ":target" },
 	},
 	{
 		P2_TAGS P3_ORIGIN "TOPIC [^ ]+( :?(.+))?",
-		Topic, { NULL, "$time", "$nick", "$user", "$host", NULL, "$message" },
+		Topic, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
 	},
 };
 #undef P2_TAGS
@@ -149,39 +149,39 @@ static const struct Matcher IRC[] = {
 static const struct Matcher Textual[] = {
 	{
 		P1_TIME "<" P0_MODE "([^>]+)> (.+)",
-		Privmsg, { "$time", "$nick", "$message" },
+		Privmsg, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "-" P0_MODE "([^-]+)- (.+)",
-		Notice, { "$time", "$nick", "$message" },
+		Notice, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "• ([^:]+): (.+)",
-		Action, { "$time", "$nick", "$message" },
+		Action, { ":time", ":nick", ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) " P2_USERHOST " joined the channel",
-		Join, { "$time", "$nick", "$user", "$host" },
+		Join, { ":time", ":nick", ":user", ":host" },
 	},
 	{
 		P1_TIME "([^ ]+) " P2_USERHOST " left the channel" P2_MESSAGE,
-		Part, { "$time", "$nick", "$user", "$host", NULL, "$message" },
+		Part, { ":time", ":nick", ":user", ":host", NULL, ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) kicked ([^ ]+) from the channel" P2_MESSAGE,
-		Kick, { "$time", "$nick", "$target", NULL, "$message" },
+		Kick, { ":time", ":nick", ":target", NULL, ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) " P2_USERHOST " left IRC" P2_MESSAGE,
-		Quit, { "$time", "$nick", "$user", "$host", NULL, "$message" },
+		Quit, { ":time", ":nick", ":user", ":host", NULL, ":message" },
 	},
 	{
 		P1_TIME "([^ ]+) is now known as ([^ ]+)",
-		Nick, { "$time", "$nick", "$target" },
+		Nick, { ":time", ":nick", ":target" },
 	},
 	{
 		P1_TIME "([^ ]+) changed the topic to (.+)",
-		Topic, { "$time", "$nick", "$message" },
+		Topic, { ":time", ":nick", ":message" },
 	},
 };
 #undef P2_USERHOST
@@ -251,30 +251,31 @@ static sqlite3_stmt *insertEvent;
 static int paramNetwork, paramContext;
 
 static void prepareInsert(sqlite3 *db) {
-	insertName = dbPrepare(
-		db, SQLITE_PREPARE_PERSISTENT,
-		"INSERT OR IGNORE INTO names (nick, user, host)"
-		"VALUES ($nick, coalesce($user, '*'), coalesce($host, '*'));"
+	static const char *InsertName = SQL(
+		INSERT OR IGNORE INTO names (nick, user, host)
+		VALUES (:nick, coalesce(:user, '*'), coalesce(:host, '*'));
 	);
+	insertName = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertName);
 
 	// SQLite expects a colon in the timezone, but ISO8601 does not.
-	insertEvent = dbPrepare(
-		db, SQLITE_PREPARE_PERSISTENT,
-		"INSERT INTO events (time, type, context, name, target, message)"
-		"SELECT"
-		" CASE"
-		"  WHEN $time LIKE '%Z' THEN datetime($time)"
-		"  ELSE datetime(substr($time, 1, 22) || ':' || substr($time, -2))"
-		" END,"
-		" $type, context, names.name, $target, $message"
-		" FROM contexts, names"
-		" WHERE contexts.network = $network AND contexts.name = $context"
-		" AND names.nick = $nick"
-		" AND names.user = coalesce($user, '*')"
-		" AND names.host = coalesce($host, '*');"
+	static const char *InsertEvent = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			CASE WHEN :time LIKE '%Z'
+				THEN datetime(:time)
+				ELSE datetime(substr(:time, 1, 22) || ':' || substr(:time, -2))
+			END,
+			:type, context, names.name, :target, :message
+		FROM contexts, names
+		WHERE contexts.network = :network
+			AND contexts.name = :context
+			AND names.nick = :nick
+			AND names.user = coalesce(:user, '*')
+			AND names.host = coalesce(:host, '*');
 	);
-	paramNetwork = sqlite3_bind_parameter_index(insertEvent, "$network");
-	paramContext = sqlite3_bind_parameter_index(insertEvent, "$context");
+	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
+	paramNetwork = sqlite3_bind_parameter_index(insertEvent, ":network");
+	paramContext = sqlite3_bind_parameter_index(insertEvent, ":context");
 }
 
 static void
@@ -293,7 +294,7 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 
 		dbBindInt(
 			insertEvent,
-			sqlite3_bind_parameter_index(insertEvent, "$type"),
+			sqlite3_bind_parameter_index(insertEvent, ":type"),
 			matcher->type
 		);
 		for (size_t i = 0; i < ARRAY_LEN(matcher->params); ++i) {
@@ -345,18 +346,17 @@ int main(int argc, char *argv[]) {
 		if (sqlite3_libversion_number() < 3025000) {
 			errx(EX_CONFIG, "SQLite version 3.25.0 or newer required");
 		}
-		int error = sqlite3_exec(
-			db,
-			"WITH potentials AS ("
-			" SELECT event, event - first_value(event) OVER ("
-			"  PARTITION BY time, type, context, nick, target, message"
-			"  ORDER BY event"
-			" ) AS diff"
-			" FROM events JOIN names USING (name)"
-			"), duplicates AS (SELECT event FROM potentials WHERE diff > 50)"
-			"DELETE FROM events WHERE event IN duplicates;",
-			NULL, NULL, NULL
+		static const char *Dedup = SQL(
+			WITH potentials (event, diff) AS (
+				SELECT event, event - first_value(event) OVER (
+					PARTITION BY time, type, context, nick, target, message
+					ORDER BY event
+				)
+				FROM events JOIN names USING (name)
+			), duplicates AS (SELECT event FROM potentials WHERE diff > 50)
+			DELETE FROM events WHERE event IN duplicates;
 		);
+		int error = sqlite3_exec(db, Dedup, NULL, NULL, NULL);
 		if (error) {
 			errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
 		}
@@ -370,11 +370,14 @@ int main(int argc, char *argv[]) {
 	}
 	regex_t pathRegex = compile(format->pattern);
 
+	static const char *InsertContext = SQL(
+		INSERT OR IGNORE INTO contexts (network, name, query)
+		SELECT
+			:network, :context,
+			NOT (:context LIKE '#%' OR :context LIKE '&%');
+	);
 	sqlite3_stmt *insertContext = dbPrepare(
-		db, SQLITE_PREPARE_PERSISTENT,
-		"INSERT OR IGNORE INTO contexts (network, name, query)"
-		"SELECT"
-		" $network, $context, NOT ($context LIKE '#%' OR $context LIKE '&%');"
+		db, SQLITE_PREPARE_PERSISTENT, InsertContext
 	);
 	dbBindText(insertContext, 1, network, -1);
 	dbBindText(insertContext, 2, context, -1);
