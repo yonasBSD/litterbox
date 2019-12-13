@@ -1,4 +1,4 @@
-.Dd December 7, 2019
+.Dd December 12, 2019
 .Dt UNSCOOP 1
 .Os
 .
@@ -8,11 +8,12 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Fl C Ar context
-.Fl N Ar network
+.Op Fl C Ar context
+.Op Fl N Ar network
 .Op Fl d Ar path
 .Op Fl f Ar format
 .Ar
+.
 .Nm
 .Fl D
 .Op Fl d Ar path
@@ -23,24 +24,25 @@ The
 utility imports IRC logs into the
 .Xr litterbox 1
 database.
+The network and context (channel or query) names
+are inferred from the input file paths,
+so
+.Nm
+should be run from the log directory root.
 .
 .Pp
 The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl C Ar context
-Set the channel or query name of the imported logs.
-Contexts beginning with
-.Sq #
-or
-.Sq &
-are assumed to be channels.
+Override the context (channel or query) name
+of imported logs.
 .
 .It Fl D
-Delete duplicate events caused by overlapping imports.
+Delete duplicate events from overlapping imports.
 This operation requires SQLite version 3.25.0 or newer.
 .
 .It Fl N Ar network
-Set the network name of the imported logs.
+Override the network name of the imported logs.
 .
 .It Fl d Ar path
 Set the database path.
@@ -51,30 +53,41 @@ The default path is as in
 .
 .It Fl f Ar format
 Set the input log format.
-The following formats are supported:
-.Sy catgirl ,
-.Sy generic ,
-.Sy irc ,
-.Sy textual .
 The default format is
-.Sy generic .
+.Cm generic .
 .Pp
-The
-.Sy generic
-format matches the following:
+The following formats are supported:
+.Bl -tag -width Ds
+.It Cm catgirl
+Logs from the catgirl IRC client.
+.It Cm generic
+Matches paths of the form
+.Pa network/context/*
+and messages of the following forms:
 .Bd -literal -offset indent
 [timestamp] <nick> privmsg
 [timestamp] -nick- notice
 [timestamp] * nick action
 .Ed
-.Pp
-The
-.Sy irc
-format matches IRC protocol messages
-tagged with the IRCv3.2
+.It Cm irc
+IRC protocol messages tagged with the IRCv3.2
 .Sy server-time
 extension.
+Network and context must be set with
+.Fl N
+and
+.Fl C .
+.It Cm textual
+Logs from the Textual IRC client.
 .El
+.El
+.
+.Sh EXAMPLES
+.Bd -literal
+find catgirl -type f -name '*.log' -print0 | xargs -0 unscoop -f catgirl
+find Textual -type f -name '*.txt' -not -path '*/Console/*' -print0 \e
+	| xargs -0 unscoop -f textual
+.Ed
 .
 .Sh SEE ALSO
 .Xr litterbox 1 ,
