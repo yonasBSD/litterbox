@@ -191,12 +191,34 @@ static const struct Format {
 	const char *name;
 	const struct Matcher *matchers;
 	size_t len;
+	const char *pattern;
+	size_t network;
+	size_t context;
 } Formats[] = {
-	{ "generic", Generic, ARRAY_LEN(Generic) },
-
-	{ "catgirl", Catgirl, ARRAY_LEN(Catgirl) },
-	{ "irc", IRC, ARRAY_LEN(IRC) },
-	{ "textual", Textual, ARRAY_LEN(Textual) },
+	{
+		"generic", Generic, ARRAY_LEN(Generic),
+		.pattern = "([^/]+)/([^/]+)/[^/]+$",
+		.network = 1, .context = 2,
+	},
+	{
+		"catgirl", Catgirl, ARRAY_LEN(Catgirl),
+		.pattern = "([^/]+)/([^/]+)/[0-9-]+[.]log$",
+		.network = 1, .context = 2,
+	},
+	{
+		"irc", IRC, ARRAY_LEN(IRC),
+		.pattern = "^$",
+	},
+	{
+		"textual", Textual, ARRAY_LEN(Textual),
+		.pattern = (
+			"(([^ /]| [^(])+) [(][0-9A-F]+[)]/"
+			"(Channels|Queries)/"
+			"([^/]+)/"
+			"[0-9-]+[.]txt$"
+		),
+		.network = 1, .context = 4,
+	},
 };
 
 static const struct Format *formatParse(const char *name) {
@@ -204,6 +226,15 @@ static const struct Format *formatParse(const char *name) {
 		if (!strcmp(name, Formats[i].name)) return &Formats[i];
 	}
 	errx(EX_USAGE, "no such format %s", name);
+}
+
+static regex_t compile(const char *pattern) {
+	regex_t regex;
+	int error = regcomp(&regex, pattern, REG_EXTENDED | REG_NEWLINE);
+	if (!error) return regex;
+	char buf[256];
+	regerror(error, &regex, buf, sizeof(buf));
+	errx(EX_SOFTWARE, "regcomp: %s: %s", buf, pattern);
 }
 
 static void
@@ -217,6 +248,7 @@ bindMatch(sqlite3_stmt *stmt, int param, const char *str, regmatch_t match) {
 
 static sqlite3_stmt *insertName;
 static sqlite3_stmt *insertEvent;
+static int paramNetwork, paramContext;
 
 static void prepareInsert(sqlite3 *db) {
 	insertName = dbPrepare(
@@ -228,39 +260,42 @@ static void prepareInsert(sqlite3 *db) {
 	// SQLite expects a colon in the timezone, but ISO8601 does not.
 	insertEvent = dbPrepare(
 		db, SQLITE_PREPARE_PERSISTENT,
-		"INSERT INTO events (context, type, time, name, target, message)"
+		"INSERT INTO events (time, type, context, name, target, message)"
 		"SELECT"
-		" $context, $type,"
 		" CASE"
 		"  WHEN $time LIKE '%Z' THEN datetime($time)"
 		"  ELSE datetime(substr($time, 1, 22) || ':' || substr($time, -2))"
 		" END,"
-		" name, $target, $message"
-		" FROM names"
-		" WHERE nick = $nick"
-		" AND user = coalesce($user, '*')"
-		" AND host = coalesce($host, '*');"
+		" $type, context, names.name, $target, $message"
+		" FROM contexts, names"
+		" WHERE contexts.network = $network AND contexts.name = $context"
+		" AND names.nick = $nick"
+		" AND names.user = coalesce($user, '*')"
+		" AND names.host = coalesce($host, '*');"
 	);
+	paramNetwork = sqlite3_bind_parameter_index(insertEvent, "$network");
+	paramContext = sqlite3_bind_parameter_index(insertEvent, "$context");
 }
 
-static void matchLine(
-	int64_t context, const struct Format *format,
-	const regex_t *regex, const char *line
-) {
+static void
+matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 	for (size_t i = 0; i < format->len; ++i) {
 		const struct Matcher *matcher = &format->matchers[i];
 		regmatch_t match[ParamCap];
 		int error = regexec(&regex[i], line, ParamCap, match, 0);
 		if (error) continue;
 
-		sqlite3_reset(insertName);
-		sqlite3_reset(insertEvent);
 		sqlite3_clear_bindings(insertName);
-		sqlite3_clear_bindings(insertEvent);
+		for (int i = 1; i <= sqlite3_bind_parameter_count(insertEvent); ++i) {
+			if (i == paramNetwork || i == paramContext) continue;
+			dbBindText(insertEvent, i, NULL, -1);
+		}
 
-		dbBindInt(insertEvent, 1, context);
-		dbBindInt(insertEvent, 2, matcher->type);
-
+		dbBindInt(
+			insertEvent,
+			sqlite3_bind_parameter_index(insertEvent, "$type"),
+			matcher->type
+		);
 		for (size_t i = 0; i < ARRAY_LEN(matcher->params); ++i) {
 			const char *param = matcher->params[i];
 			if (!param) continue;
@@ -273,6 +308,8 @@ static void matchLine(
 
 		dbStep(insertName);
 		dbStep(insertEvent);
+		sqlite3_reset(insertName);
+		sqlite3_reset(insertEvent);
 		break;
 	}
 }
@@ -295,8 +332,6 @@ int main(int argc, char *argv[]) {
 			break; default:  return EX_USAGE;
 		}
 	}
-	if (!dedup && !network) errx(EX_USAGE, "network required");
-	if (!dedup && !context) errx(EX_USAGE, "context required");
 
 	int flags = SQLITE_OPEN_READWRITE;
 	sqlite3 *db = (path ? dbOpen(path, flags) : dbFind(flags));
@@ -331,44 +366,34 @@ int main(int argc, char *argv[]) {
 
 	regex_t regex[format->len];
 	for (size_t i = 0; i < format->len; ++i) {
-		const struct Matcher *matcher = &format->matchers[i];
-		int error = regcomp(
-			&regex[i], matcher->pattern, REG_EXTENDED | REG_NEWLINE
-		);
-		if (!error) continue;
-		char buf[256];
-		regerror(error, &regex[i], buf, sizeof(buf));
-		errx(EX_SOFTWARE, "regcomp: %s: %s", buf, matcher->pattern);
+		regex[i] = compile(format->matchers[i].pattern);
 	}
+	regex_t pathRegex = compile(format->pattern);
 
 	sqlite3_stmt *insertContext = dbPrepare(
-		db, 0,
+		db, SQLITE_PREPARE_PERSISTENT,
 		"INSERT OR IGNORE INTO contexts (network, name, query)"
-		"VALUES ($network, $context, $query);"
+		"SELECT"
+		" $network, $context, NOT ($context LIKE '#%' OR $context LIKE '&%');"
 	);
 	dbBindText(insertContext, 1, network, -1);
 	dbBindText(insertContext, 2, context, -1);
-	dbBindInt(insertContext, 3, context[0] != '#' && context[0] != '&');
-	dbStep(insertContext);
-	sqlite3_finalize(insertContext);
-
-	sqlite3_stmt *selectContext = dbPrepare(
-		db, 0,
-		"SELECT context FROM contexts"
-		" WHERE network = $network AND name = $context;"
-	);
-	dbBindText(selectContext, 1, network, -1);
-	dbBindText(selectContext, 2, context, -1);
-	assert(SQLITE_ROW == dbStep(selectContext));
-	int64_t id = sqlite3_column_int64(selectContext, 0);
-	sqlite3_finalize(selectContext);
 
 	prepareInsert(db);
+	dbBindText(insertEvent, paramNetwork, network, -1);
+	dbBindText(insertEvent, paramContext, context, -1);
 
 	size_t sizeTotal = 0;
+	regmatch_t match[argc][ParamCap];
 	for (int i = optind; i < argc; ++i) {
+		int error = regexec(&pathRegex, argv[i], ParamCap, match[i], 0);
+		if (error && (!network || !context)) {
+			warnx("skipping %s", argv[i]);
+			argv[i] = NULL;
+			continue;
+		}
 		struct stat st;
-		int error = stat(argv[i], &st);
+		error = stat(argv[i], &st);
 		if (error) err(EX_NOINPUT, "%s", argv[i]);
 		sizeTotal += st.st_size;
 	}
@@ -378,25 +403,44 @@ int main(int argc, char *argv[]) {
 	char *line = NULL;
 	size_t cap = 0;
 	for (int i = optind; i < argc; ++i) {
+		if (!argv[i]) continue;
 		FILE *file = fopen(argv[i], "r");
 		if (!file) err(EX_NOINPUT, "%s", argv[i]);
 		dbBegin(db);
+
+		if (!network) {
+			bindMatch(insertContext, 1, argv[i], match[i][format->network]);
+			bindMatch(
+				insertEvent, paramNetwork, argv[i], match[i][format->network]
+			);
+		}
+		if (!context) {
+			bindMatch(insertContext, 2, argv[i], match[i][format->context]);
+			bindMatch(
+				insertEvent, paramContext, argv[i], match[i][format->context]
+			);
+		}
+		dbStep(insertContext);
+		sqlite3_reset(insertContext);
+
 		ssize_t len;
 		while (0 < (len = getline(&line, &cap, file))) {
-			matchLine(id, format, regex, line);
+			matchLine(format, regex, line);
 			sizeRead += len;
 			if (100 * sizeRead / sizeTotal != sizePercent) {
 				sizePercent = 100 * sizeRead / sizeTotal;
-				printf("\r%s/%s: %3zu%%", network, context, sizePercent);
+				printf("\r%3zu%%", sizePercent);
 				fflush(stdout);
 			}
 		}
 		if (ferror(file)) err(EX_IOERR, "%s", argv[i]);
+
 		fclose(file);
 		dbCommit(db);
 	}
 	printf("\n");
 
+	sqlite3_finalize(insertContext);
 	sqlite3_finalize(insertName);
 	sqlite3_finalize(insertEvent);
 	sqlite3_close(db);
