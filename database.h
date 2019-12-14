@@ -14,7 +14,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
@@ -26,23 +25,28 @@
 #include <sys/stat.h>
 #include <sysexits.h>
 
-#define DATABASE_PATH "litterbox/litterbox.sqlite"
-
 #define SQL(...) #__VA_ARGS__
+
+#define DATABASE_PATH "litterbox/litterbox.sqlite"
 
 enum { DatabaseVersion = 0 };
 
 enum Type {
 	Privmsg,
-	Action,
 	Notice,
+	Action,
 	Join,
 	Part,
-	Kick,
 	Quit,
+	Kick,
 	Nick,
 	Topic,
 };
+
+static inline void dbExec(sqlite3 *db, const char *sql) {
+	int error = sqlite3_exec(db, sql, NULL, NULL, NULL);
+	if (error) errx(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
+}
 
 static inline sqlite3 *dbOpen(char *path, int flags) {
 	char *base = strrchr(path, '/');
@@ -62,9 +66,7 @@ static inline sqlite3 *dbOpen(char *path, int flags) {
 	if (error) errx(EX_NOINPUT, "%s: %s", path, sqlite3_errmsg(db));
 
 	sqlite3_busy_timeout(db, 1000);
-
-	error = sqlite3_exec(db, SQL(PRAGMA foreign_keys = true;), NULL, NULL, NULL);
-	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+	dbExec(db, SQL(PRAGMA foreign_keys = true;));
 
 	return db;
 }
@@ -96,21 +98,11 @@ static inline sqlite3 *dbFind(int flags) {
 	return NULL;
 }
 
-static inline void dbBegin(sqlite3 *db) {
-	int error = sqlite3_exec(db, SQL(BEGIN TRANSACTION;), NULL, NULL, NULL);
-	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
-}
-
-static inline void dbCommit(sqlite3 *db) {
-	int error = sqlite3_exec(db, SQL(COMMIT TRANSACTION;), NULL, NULL, NULL);
-	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
-}
-
 static inline sqlite3_stmt *
 dbPrepare(sqlite3 *db, unsigned flags, const char *sql) {
 	sqlite3_stmt *stmt;
 	int error = sqlite3_prepare_v3(db, sql, -1, flags, &stmt, NULL);
-	if (error) errx(EX_SOFTWARE, "sqlite3_prepare_v3: %s", sqlite3_errmsg(db));
+	if (error) errx(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
 	return stmt;
 }
 
@@ -137,14 +129,14 @@ static inline int dbStep(sqlite3_stmt *stmt) {
 	int error = sqlite3_step(stmt);
 	if (error == SQLITE_ROW || error == SQLITE_DONE) return error;
 	errx(
-		EX_SOFTWARE, "sqlite3_step: %s",
-		sqlite3_errmsg(sqlite3_db_handle(stmt))
+		EX_SOFTWARE, "%s: %s",
+		sqlite3_errmsg(sqlite3_db_handle(stmt)), sqlite3_expanded_sql(stmt)
 	);
 }
 
 static inline int dbVersion(sqlite3 *db) {
 	sqlite3_stmt *stmt = dbPrepare(db, 0, SQL(PRAGMA user_version;));
-	assert(SQLITE_ROW == dbStep(stmt));
+	dbStep(stmt);
 	int version = sqlite3_column_int(stmt, 0);
 	sqlite3_finalize(stmt);
 	return version;
@@ -214,8 +206,7 @@ static const char *InitSQL = SQL(
 );
 
 static inline void dbInit(sqlite3 *db) {
-	int error = sqlite3_exec(db, InitSQL, NULL, NULL, NULL);
-	if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+	dbExec(db, InitSQL);
 }
 
 static const char *MigrationSQL[] = {
@@ -224,7 +215,6 @@ static const char *MigrationSQL[] = {
 
 static inline void dbMigrate(sqlite3 *db) {
 	for (int version = dbVersion(db); version < DatabaseVersion; ++version) {
-		int error = sqlite3_exec(db, MigrationSQL[version], NULL, NULL, NULL);
-		if (error) errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
+		dbExec(db, MigrationSQL[version]);
 	}
 }

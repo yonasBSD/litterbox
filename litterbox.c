@@ -25,12 +25,14 @@
 #include "database.h"
 
 int main(int argc, char *argv[]) {
+	char *path = NULL;
 	bool init = false;
 	bool migrate = false;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "im"))) {
+	while (0 < (opt = getopt(argc, argv, "d:im"))) {
 		switch (opt) {
+			break; case 'd': path = optarg;
 			break; case 'i': init = true;
 			break; case 'm': migrate = true;
 			break; default:  return EX_USAGE;
@@ -40,12 +42,7 @@ int main(int argc, char *argv[]) {
 	int flags = SQLITE_OPEN_READWRITE;
 	if (init) flags |= SQLITE_OPEN_CREATE;
 
-	sqlite3 *db;
-	if (optind < argc) {
-		db = dbOpen(argv[optind], flags);
-	} else {
-		db = dbFind(flags);
-	}
+	sqlite3 *db = (path ? dbOpen(path, flags) : dbFind(flags));
 	if (!db) errx(EX_NOINPUT, "database not found");
 
 	if (init) {
@@ -57,8 +54,7 @@ int main(int argc, char *argv[]) {
 		return EX_OK;
 	}
 
-	int version = dbVersion(db);
-	if (version != DatabaseVersion) {
-		errx(EX_CONFIG, "database needs migration");
+	if (dbVersion(db) != DatabaseVersion) {
+		errx(EX_CONFIG, "database out of date; migrate with -m");
 	}
 }

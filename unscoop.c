@@ -14,7 +14,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
 #include <err.h>
 #include <regex.h>
 #include <sqlite3.h>
@@ -171,27 +170,25 @@ static const struct Format {
 } Formats[] = {
 	{
 		"generic", Generic, ARRAY_LEN(Generic),
-		.pattern = "([^/]+)/([^/]+)/[^/]+$",
-		.network = 1, .context = 2,
+		"([^/]+)/([^/]+)/[^/]+$", 1, 2,
 	},
 	{
 		"catgirl", Catgirl, ARRAY_LEN(Catgirl),
-		.pattern = "([^/]+)/([^/]+)/[0-9-]+[.]log$",
-		.network = 1, .context = 2,
+		"([^/]+)/([^/]+)/[0-9-]+[.]log$", 1, 2,
 	},
 	{
 		"irc", IRC, ARRAY_LEN(IRC),
-		.pattern = "^$",
+		"^$", 0, 0,
 	},
 	{
 		"textual", Textual, ARRAY_LEN(Textual),
-		.pattern = (
+		(
 			"(([^ /]| [^(])+) [(][0-9A-F]+[)]/"
 			"(Channels|Queries)/"
 			"([^/]+)/"
 			"[0-9-]+[.]txt$"
 		),
-		.network = 1, .context = 4,
+		1, 4,
 	},
 };
 
@@ -222,19 +219,21 @@ bindMatch(sqlite3_stmt *stmt, int param, const char *str, regmatch_t match) {
 
 static sqlite3_stmt *insertName;
 static sqlite3_stmt *insertEvent;
-static int paramNetwork, paramContext;
+static int paramNetwork;
+static int paramContext;
+static int paramType;
 
 static void prepareInsert(sqlite3 *db) {
-	static const char *InsertName = SQL(
+	const char *InsertName = SQL(
 		INSERT OR IGNORE INTO names (nick, user, host)
 		VALUES (:nick, coalesce(:user, '*'), coalesce(:host, '*'));
 	);
 	insertName = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertName);
 
-	// SQLite expects a colon in the timezone, but ISO8601 does not.
-	static const char *InsertEvent = SQL(
+	const char *InsertEvent = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
 		SELECT
+			// SQLite expects a colon in the timezine, but ISO8601 does not.
 			CASE WHEN :time LIKE '%Z'
 				THEN datetime(:time)
 				ELSE datetime(substr(:time, 1, 22) || ':' || substr(:time, -2))
@@ -250,6 +249,7 @@ static void prepareInsert(sqlite3 *db) {
 	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
 	paramNetwork = sqlite3_bind_parameter_index(insertEvent, ":network");
 	paramContext = sqlite3_bind_parameter_index(insertEvent, ":context");
+	paramType = sqlite3_bind_parameter_index(insertEvent, ":type");
 }
 
 static void
@@ -257,20 +257,15 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 	for (size_t i = 0; i < format->len; ++i) {
 		const struct Matcher *matcher = &format->matchers[i];
 		regmatch_t match[ParamCap];
-		int error = regexec(&regex[i], line, ParamCap, match, 0);
-		if (error) continue;
+		if (regexec(&regex[i], line, ParamCap, match, 0)) continue;
 
 		sqlite3_clear_bindings(insertName);
 		for (int i = 1; i <= sqlite3_bind_parameter_count(insertEvent); ++i) {
 			if (i == paramNetwork || i == paramContext) continue;
-			dbBindText(insertEvent, i, NULL, -1);
+			sqlite3_bind_null(insertEvent, i);
 		}
 
-		dbBindInt(
-			insertEvent,
-			sqlite3_bind_parameter_index(insertEvent, ":type"),
-			matcher->type
-		);
+		dbBindInt(insertEvent, paramType, matcher->type);
 		for (size_t i = 0; i < ARRAY_LEN(matcher->params); ++i) {
 			const char *param = matcher->params[i];
 			if (!param) continue;
@@ -287,6 +282,25 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 		sqlite3_reset(insertEvent);
 		break;
 	}
+}
+
+static void dedupEvents(sqlite3 *db) {
+	if (sqlite3_libversion_number() < 3025000) {
+		errx(EX_CONFIG, "SQLite version 3.25.0 or newer required");
+	}
+	const char *Delete = SQL(
+		WITH potentials (event, diff) AS (
+			SELECT event, event - first_value(event) OVER matching
+			FROM events JOIN names USING (name)
+			WINDOW matching (
+				PARTITION BY time, type, context, nick, target, message
+				ORDER BY event
+			)
+		), duplicates AS (SELECT event FROM potentials WHERE diff > 50)
+		DELETE FROM events WHERE event IN duplicates;
+	);
+	dbExec(db, Delete);
+	printf("deleted %d events\n", sqlite3_changes(db));
 }
 
 int main(int argc, char *argv[]) {
@@ -313,42 +327,27 @@ int main(int argc, char *argv[]) {
 	if (!db) errx(EX_NOINPUT, "database not found");
 
 	if (dbVersion(db) != DatabaseVersion) {
-		errx(EX_CONFIG, "database needs migration");
+		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
 	}
 
 	if (dedup) {
-		if (sqlite3_libversion_number() < 3025000) {
-			errx(EX_CONFIG, "SQLite version 3.25.0 or newer required");
-		}
-		static const char *Dedup = SQL(
-			WITH potentials (event, diff) AS (
-				SELECT event, event - first_value(event) OVER (
-					PARTITION BY time, type, context, nick, target, message
-					ORDER BY event
-				)
-				FROM events JOIN names USING (name)
-			), duplicates AS (SELECT event FROM potentials WHERE diff > 50)
-			DELETE FROM events WHERE event IN duplicates;
-		);
-		int error = sqlite3_exec(db, Dedup, NULL, NULL, NULL);
-		if (error) {
-			errx(EX_SOFTWARE, "sqlite3_exec: %s", sqlite3_errmsg(db));
-		}
-		printf("deleted %d events\n", sqlite3_changes(db));
+		dedupEvents(db);
+		sqlite3_close(db);
 		return EX_OK;
 	}
 
+	regex_t pathRegex = compile(format->pattern);
 	regex_t regex[format->len];
 	for (size_t i = 0; i < format->len; ++i) {
 		regex[i] = compile(format->matchers[i].pattern);
 	}
-	regex_t pathRegex = compile(format->pattern);
 
-	static const char *InsertContext = SQL(
+	const char *InsertContext = SQL(
 		INSERT OR IGNORE INTO contexts (network, name, query)
-		SELECT
+		VALUES (
 			:network, :context,
-			NOT (:context LIKE '#%' OR :context LIKE '&%');
+			NOT (:context LIKE '#%' OR :context LIKE '&%')
+		);
 	);
 	sqlite3_stmt *insertContext = dbPrepare(
 		db, SQLITE_PREPARE_PERSISTENT, InsertContext
@@ -361,7 +360,10 @@ int main(int argc, char *argv[]) {
 	dbBindText(insertEvent, paramContext, context, -1);
 
 	size_t sizeTotal = 0;
+	size_t sizeRead = 0;
+	size_t sizePercent = -1;
 	regmatch_t match[argc][ParamCap];
+
 	for (int i = optind; i < argc; ++i) {
 		int error = regexec(&pathRegex, argv[i], ParamCap, match[i], 0);
 		if (error && (!network || !context)) {
@@ -374,28 +376,26 @@ int main(int argc, char *argv[]) {
 		if (error) err(EX_NOINPUT, "%s", argv[i]);
 		sizeTotal += st.st_size;
 	}
-	size_t sizeRead = 0;
-	size_t sizePercent = 101;
+	if (!sizeTotal) errx(EX_NOINPUT, "no input files");
 
 	char *line = NULL;
 	size_t cap = 0;
 	for (int i = optind; i < argc; ++i) {
 		if (!argv[i]) continue;
+
 		FILE *file = fopen(argv[i], "r");
 		if (!file) err(EX_NOINPUT, "%s", argv[i]);
-		dbBegin(db);
+		dbExec(db, SQL(BEGIN TRANSACTION;));
 
+		regmatch_t pathNetwork = match[i][format->network];
+		regmatch_t pathContext = match[i][format->context];
 		if (!network) {
-			bindMatch(insertContext, 1, argv[i], match[i][format->network]);
-			bindMatch(
-				insertEvent, paramNetwork, argv[i], match[i][format->network]
-			);
+			bindMatch(insertContext, 1, argv[i], pathNetwork);
+			bindMatch(insertEvent, paramNetwork, argv[i], pathNetwork);
 		}
 		if (!context) {
-			bindMatch(insertContext, 2, argv[i], match[i][format->context]);
-			bindMatch(
-				insertEvent, paramContext, argv[i], match[i][format->context]
-			);
+			bindMatch(insertContext, 2, argv[i], pathContext);
+			bindMatch(insertEvent, paramContext, argv[i], pathContext);
 		}
 		dbStep(insertContext);
 		sqlite3_reset(insertContext);
@@ -413,7 +413,7 @@ int main(int argc, char *argv[]) {
 		if (ferror(file)) err(EX_IOERR, "%s", argv[i]);
 
 		fclose(file);
-		dbCommit(db);
+		dbExec(db, SQL(COMMIT TRANSACTION;));
 	}
 	printf("\n");
 

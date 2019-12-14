@@ -1,4 +1,4 @@
-.Dd December 1, 2019
+.Dd December 13, 2019
 .Dt LITTERBOX 1
 .Os
 .
@@ -8,17 +8,17 @@
 .
 .Sh SYNOPSIS
 .Nm
+.Op Fl d Ar path
 .Op Fl h Ar host
 .Op Fl j Ar join
 .Op Fl n Ar nick
 .Op Fl p Ar port
 .Op Fl u Ar user
 .Op Fl w Ar pass
-.Op Ar path
 .
 .Nm
 .Fl i | m
-.Op Ar path
+.Op Fl d Ar path
 .
 .Sh DESCRIPTION
 The
@@ -31,6 +31,14 @@ which may be queried with
 The arguments are as follows:
 .
 .Bl -tag -width "-h host"
+.It Fl d Ar path
+Set the path to the database file.
+The database must be initialized with
+.Fl i .
+See
+.Sx FILES
+for the default path.
+.
 .It Fl h Ar host
 Connect to
 .Ar host .
@@ -64,14 +72,6 @@ The default username is the same as the nickname.
 .It Fl w Ar pass
 Log in with the server password
 .Ar pass .
-.
-.It Ar path
-The path to the database file.
-The database must be initialized with
-.Fl i .
-See
-.Sx FILES
-for the default path.
 .El
 .
 .Sh FILES
