@@ -152,6 +152,7 @@ static inline int dbVersion(sqlite3 *db) {
 
 static const char *InitSQL = SQL(
 	BEGIN TRANSACTION;
+
 	CREATE TABLE contexts (
 		context INTEGER PRIMARY KEY,
 		network TEXT NOT NULL,
@@ -159,6 +160,7 @@ static const char *InitSQL = SQL(
 		query BOOLEAN NOT NULL,
 		UNIQUE (network, name)
 	);
+
 	CREATE TABLE names (
 		name INTEGER PRIMARY KEY,
 		nick TEXT NOT NULL,
@@ -166,6 +168,7 @@ static const char *InitSQL = SQL(
 		host TEXT NOT NULL,
 		UNIQUE (nick, user, host)
 	);
+
 	CREATE TABLE events (
 		event INTEGER PRIMARY KEY,
 		time DATETIME NOT NULL,
@@ -175,19 +178,38 @@ static const char *InitSQL = SQL(
 		target TEXT,
 		message TEXT
 	);
+
+	CREATE VIEW text (
+		event, network, channel, query, nick, user, target, message
+	) AS
+	SELECT
+		event, network,
+		CASE WHEN query THEN NULL ELSE contexts.name END,
+		CASE WHEN query THEN contexts.name ELSE NULL END,
+		nick, user, target, message
+	FROM events
+	JOIN contexts USING (context)
+	JOIN names ON names.name = events.name;
+
 	CREATE VIRTUAL TABLE search USING fts5 (
-		message,
-		content = events,
+		network, channel, query, nick, user, target, message,
+		content = text,
 		content_rowid = event,
 		tokenize = 'porter'
 	);
+
 	CREATE TRIGGER eventsInsert AFTER INSERT ON events BEGIN
-		INSERT INTO search (rowid, message) VALUES (new.event, new.message);
+		INSERT INTO search (
+			rowid, network, channel, query, nick, user, target, message
+		) SELECT * FROM text WHERE event = new.event;
 	END;
+
 	CREATE TRIGGER eventsDelete AFTER DELETE ON events BEGIN
-		INSERT INTO search (search, rowid, message)
-		VALUES ('delete', old.event, old.message);
+		INSERT INTO search (
+			search, rowid, network, channel, query, nick, user, target, message
+		) SELECT 'delete', * FROM text WHERE event = old.event;
 	END;
+
 	COMMIT TRANSACTION;
 );
 
