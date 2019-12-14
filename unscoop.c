@@ -47,36 +47,28 @@ static const struct Matcher Catgirl[] = {
 	{
 		P1_TIME "<([^>]+)> (.+)",
 		Privmsg, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "-([^-]+)- (.+)",
 		Notice, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "[*] ([^ ]+) (.+)",
 		Action, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) arrives",
 		Join, { ":time", ":nick" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) leaves [^,]+" P2_MESSAGE,
 		Part, { ":time", ":nick", NULL, ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) kicks ([^ ]+) out of [^,]+" P2_MESSAGE,
 		Kick, { ":time", ":nick", ":target", NULL, ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) leaves" P2_MESSAGE,
 		Quit, { ":time", ":nick", NULL, ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) is now known as ([^ ]+)",
 		Nick, { ":time", ":nick", ":target" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) places a new sign in [^,]+" P2_MESSAGE,
 		Topic, { ":time", ":nick", ":message" },
 	},
@@ -87,12 +79,10 @@ static const struct Matcher Generic[] = {
 	{
 		P1_TIME "<" P0_MODE "([^>]+)>[ \t](.+)",
 		Privmsg, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "-" P0_MODE "([^-]+)-[ \t](.+)",
 		Notice, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "[*][ \t]" P0_MODE "([^ \t]+)[ \t](.+)",
 		Action, { ":time", ":nick", ":message" },
 	},
@@ -104,39 +94,31 @@ static const struct Matcher IRC[] = {
 	{
 		P2_TAGS P3_ORIGIN "PRIVMSG [^ ]+ :?\1ACTION ([^\1]+)",
 		Action, { NULL, ":time", ":nick", ":user", ":host", ":message" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "PRIVMSG [^ ]+ :?(.+)",
 		Privmsg, { NULL, ":time", ":nick", ":user", ":host", ":message" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "NOTICE [^ ]+ :?(.+)",
 		Notice, { NULL, ":time", ":nick", ":user", ":host", ":message" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "JOIN [^ ]+",
 		Join, { NULL, ":time", ":nick", ":user", ":host" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "PART [^ ]+( :?(.+))?",
 		Part, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "KICK [^ ]+ ([^ ]+)( :?(.+))?",
 		Kick, {
 			NULL, ":time", ":nick", ":user", ":host", ":target",
 			NULL, ":message"
 		},
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "QUIT( :?(.+))?",
 		Quit, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "NICK :?([^ ]+)",
 		Nick, { NULL, ":time", ":nick", ":user", ":host", ":target" },
-	},
-	{
+	}, {
 		P2_TAGS P3_ORIGIN "TOPIC [^ ]+( :?(.+))?",
 		Topic, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
 	},
@@ -150,36 +132,28 @@ static const struct Matcher Textual[] = {
 	{
 		P1_TIME "<" P0_MODE "([^>]+)> (.+)",
 		Privmsg, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "-" P0_MODE "([^-]+)- (.+)",
 		Notice, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "• ([^:]+): (.+)",
 		Action, { ":time", ":nick", ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) " P2_USERHOST " joined the channel",
 		Join, { ":time", ":nick", ":user", ":host" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) " P2_USERHOST " left the channel" P2_MESSAGE,
 		Part, { ":time", ":nick", ":user", ":host", NULL, ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) kicked ([^ ]+) from the channel" P2_MESSAGE,
 		Kick, { ":time", ":nick", ":target", NULL, ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) " P2_USERHOST " left IRC" P2_MESSAGE,
 		Quit, { ":time", ":nick", ":user", ":host", NULL, ":message" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) is now known as ([^ ]+)",
 		Nick, { ":time", ":nick", ":target" },
-	},
-	{
+	}, {
 		P1_TIME "([^ ]+) changed the topic to (.+)",
 		Topic, { ":time", ":nick", ":message" },
 	},
