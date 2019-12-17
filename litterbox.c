@@ -106,8 +106,18 @@ static void require(const struct Message *msg, bool nick, size_t len) {
 	}
 }
 
-static char *self;
 static const char *join;
+
+static char *self;
+static char *network;
+static char *chanTypes;
+static char *prefixes;
+
+static void set(char **field, const char *value) {
+	free(*field);
+	*field = strdup(value);
+	if (!*field) err(EX_OSERR, "strdup");
+}
 
 typedef void Handler(struct Message *msg);
 
@@ -118,9 +128,25 @@ static void handleCap(struct Message *msg) {
 
 static void handleReplyWelcome(struct Message *msg) {
 	require(msg, false, 1);
-	self = strdup(msg->params[0]);
-	if (!self) err(EX_OSERR, "strdup");
+	set(&self, msg->params[0]);
 	format("JOIN :%s\r\n", join);
+}
+
+static void handleReplyISupport(struct Message *msg) {
+	for (size_t i = 0; i < ParamCap; ++i) {
+		if (!msg->params[i]) break;
+		char *key = strsep(&msg->params[i], "=");
+		if (!msg->params[i]) continue;
+		if (!strcmp(key, "NETWORK")) {
+			set(&network, msg->params[i]);
+		} else if (!strcmp(key, "CHANTYPES")) {
+			set(&chanTypes, msg->params[i]);
+		} else if (!strcmp(key, "PREFIX")) {
+			strsep(&msg->params[i], ")");
+			if (!msg->params[i]) continue;
+			set(&prefixes, msg->params[i]);
+		}
+	}
 }
 
 static void handlePing(struct Message *msg) {
@@ -133,6 +159,7 @@ static const struct {
 	Handler *fn;
 } Handlers[] = {
 	{ "001", handleReplyWelcome },
+	{ "005", handleReplyISupport },
 	{ "CAP", handleCap },
 	{ "PING", handlePing },
 };
@@ -197,6 +224,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (!host) errx(EX_USAGE, "host required");
+	set(&network, host);
+	set(&chanTypes, "#&");
+	set(&prefixes, "@+");
 
 	client = tls_client();
 	if (!client) errx(EX_SOFTWARE, "tls_client");
