@@ -26,6 +26,7 @@
 #include <sysexits.h>
 
 #define SQL(...) #__VA_ARGS__
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 

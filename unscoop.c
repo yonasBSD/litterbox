@@ -28,8 +28,6 @@
 
 #include "database.h"
 
-#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
-
 enum { ParamCap = 8 };
 
 struct Matcher {
