@@ -206,8 +206,9 @@ static regex_t compile(const char *pattern) {
 	errx(EX_SOFTWARE, "regcomp: %s: %s", buf, pattern);
 }
 
-static void
-bindMatch(sqlite3_stmt *stmt, int param, const char *str, regmatch_t match) {
+static void bindMatch(
+	sqlite3_stmt *stmt, const char *param, const char *str, regmatch_t match
+) {
 	if (match.rm_so < 0) {
 		dbBindText(stmt, param, NULL, -1);
 	} else {
@@ -219,7 +220,6 @@ static sqlite3_stmt *insertName;
 static sqlite3_stmt *insertEvent;
 static int paramNetwork;
 static int paramContext;
-static int paramType;
 
 static void prepareInsert(sqlite3 *db) {
 	const char *InsertName = SQL(
@@ -247,7 +247,6 @@ static void prepareInsert(sqlite3 *db) {
 	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
 	paramNetwork = sqlite3_bind_parameter_index(insertEvent, ":network");
 	paramContext = sqlite3_bind_parameter_index(insertEvent, ":context");
-	paramType = sqlite3_bind_parameter_index(insertEvent, ":type");
 }
 
 static void
@@ -263,15 +262,14 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 			sqlite3_bind_null(insertEvent, i);
 		}
 
-		dbBindInt(insertEvent, paramType, matcher->type);
+		dbBindInt(insertEvent, ":type", matcher->type);
 		for (size_t i = 0; i < ARRAY_LEN(matcher->params); ++i) {
 			const char *param = matcher->params[i];
 			if (!param) continue;
-			int p = sqlite3_bind_parameter_index(insertName, param);
-			if (p) bindMatch(insertName, p, line, match[1 + i]);
-			p = sqlite3_bind_parameter_index(insertEvent, param);
-			if (!p) errx(EX_SOFTWARE, "no such parameter %s", param);
-			bindMatch(insertEvent, p, line, match[1 + i]);
+			if (sqlite3_bind_parameter_index(insertName, param)) {
+				bindMatch(insertName, param, line, match[1 + i]);
+			}
+			bindMatch(insertEvent, param, line, match[1 + i]);
 		}
 
 		dbStep(insertName);
@@ -350,12 +348,12 @@ int main(int argc, char *argv[]) {
 	sqlite3_stmt *insertContext = dbPrepare(
 		db, SQLITE_PREPARE_PERSISTENT, InsertContext
 	);
-	dbBindText(insertContext, 1, network, -1);
-	dbBindText(insertContext, 2, context, -1);
+	dbBindText(insertContext, ":network", network, -1);
+	dbBindText(insertContext, ":context", context, -1);
 
 	prepareInsert(db);
-	dbBindText(insertEvent, paramNetwork, network, -1);
-	dbBindText(insertEvent, paramContext, context, -1);
+	dbBindText(insertEvent, ":network", network, -1);
+	dbBindText(insertEvent, ":context", context, -1);
 
 	size_t sizeTotal = 0;
 	size_t sizeRead = 0;
@@ -388,12 +386,12 @@ int main(int argc, char *argv[]) {
 		regmatch_t pathNetwork = match[i][format->network];
 		regmatch_t pathContext = match[i][format->context];
 		if (!network) {
-			bindMatch(insertContext, 1, argv[i], pathNetwork);
-			bindMatch(insertEvent, paramNetwork, argv[i], pathNetwork);
+			bindMatch(insertContext, ":network", argv[i], pathNetwork);
+			bindMatch(insertEvent, ":network", argv[i], pathNetwork);
 		}
 		if (!context) {
-			bindMatch(insertContext, 2, argv[i], pathContext);
-			bindMatch(insertEvent, paramContext, argv[i], pathContext);
+			bindMatch(insertContext, ":context", argv[i], pathContext);
+			bindMatch(insertEvent, ":context", argv[i], pathContext);
 		}
 		dbStep(insertContext);
 		sqlite3_reset(insertContext);

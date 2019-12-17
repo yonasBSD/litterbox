@@ -108,8 +108,10 @@ dbPrepare(sqlite3 *db, unsigned flags, const char *sql) {
 }
 
 static inline void
-dbBindText(sqlite3_stmt *stmt, int param, const char *text, int len) {
-	int error = sqlite3_bind_text(stmt, param, text, len, NULL);
+dbBindText(sqlite3_stmt *stmt, const char *param, const char *text, int len) {
+	int index = sqlite3_bind_parameter_index(stmt, param);
+	if (!index) errx(EX_SOFTWARE, "no such parameter %s", param);
+	int error = sqlite3_bind_text(stmt, index, text, len, NULL);
 	if (!error) return;
 	errx(
 		EX_SOFTWARE, "sqlite3_bind_text: %s",
@@ -117,8 +119,11 @@ dbBindText(sqlite3_stmt *stmt, int param, const char *text, int len) {
 	);
 }
 
-static inline void dbBindInt(sqlite3_stmt *stmt, int param, int64_t value) {
-	int error = sqlite3_bind_int64(stmt, param, value);
+static inline void
+dbBindInt(sqlite3_stmt *stmt, const char *param, int64_t value) {
+	int index = sqlite3_bind_parameter_index(stmt, param);
+	if (!index) errx(EX_SOFTWARE, "no such parameter %s", param);
+	int error = sqlite3_bind_int64(stmt, index, value);
 	if (!error) return;
 	errx(
 		EX_SOFTWARE, "sqlite3_bind_int64: %s",
