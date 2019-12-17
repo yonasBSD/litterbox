@@ -96,6 +96,19 @@ static struct Message parse(char *line) {
 	return msg;
 }
 
+static void require(const struct Message *msg, bool nick, size_t len) {
+	if (nick && !msg->nick) {
+		errx(EX_PROTOCOL, "%s missing origin nick", msg->cmd);
+	}
+	for (size_t i = 0; i < len; ++i) {
+		if (msg->params[i]) continue;
+		errx(EX_PROTOCOL, "%s missing parameter %zu", msg->cmd, 1 + i);
+	}
+}
+
+static char *self;
+static const char *join;
+
 typedef void Handler(struct Message *msg);
 
 static void handleCap(struct Message *msg) {
@@ -103,8 +116,15 @@ static void handleCap(struct Message *msg) {
 	format("CAP END\r\n");
 }
 
+static void handleReplyWelcome(struct Message *msg) {
+	require(msg, false, 1);
+	self = strdup(msg->params[0]);
+	if (!self) err(EX_OSERR, "strdup");
+	format("JOIN :%s\r\n", join);
+}
+
 static void handlePing(struct Message *msg) {
-	// TODO: Require params[0].
+	require(msg, false, 1);
 	format("PONG :%s\r\n", msg->params[0]);
 }
 
@@ -112,6 +132,7 @@ static const struct {
 	const char *cmd;
 	Handler *fn;
 } Handlers[] = {
+	{ "001", handleReplyWelcome },
 	{ "CAP", handleCap },
 	{ "PING", handlePing },
 };
@@ -139,12 +160,13 @@ int main(int argc, char *argv[]) {
 	const char *pass = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "!d:h:imn:p:u:vw:"))) {
+	while (0 < (opt = getopt(argc, argv, "!d:h:ij:mn:p:u:vw:"))) {
 		switch (opt) {
 			break; case '!': insecure = true;
 			break; case 'd': path = optarg;
 			break; case 'h': host = optarg;
 			break; case 'i': init = true;
+			break; case 'j': join = optarg;
 			break; case 'm': migrate = true;
 			break; case 'n': nick = optarg;
 			break; case 'p': port = optarg;
