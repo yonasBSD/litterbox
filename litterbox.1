@@ -8,6 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
+.Op Fl v
 .Op Fl d Ar path
 .Op Fl h Ar host
 .Op Fl j Ar join
@@ -68,6 +69,9 @@ The default port is 6697.
 Set the username to
 .Ar user .
 The default username is the same as the nickname.
+.
+.It Fl v
+Write sent and received IRC messages to standard error.
 .
 .It Fl w Ar pass
 Log in with the server password
