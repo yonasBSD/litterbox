@@ -258,21 +258,24 @@ static void handlePing(struct Message *msg) {
 
 static const struct {
 	const char *cmd;
+	bool transaction;
 	Handler *fn;
 } Handlers[] = {
-	{ "001", handleReplyWelcome },
-	{ "005", handleReplyISupport },
-	{ "CAP", handleCap },
-	{ "NOTICE", handlePrivmsg },
-	{ "PING", handlePing },
-	{ "PRIVMSG", handlePrivmsg },
+	{ "001", false, handleReplyWelcome },
+	{ "005", false, handleReplyISupport },
+	{ "CAP", false, handleCap },
+	{ "NOTICE", true, handlePrivmsg },
+	{ "PING", false, handlePing },
+	{ "PRIVMSG", true, handlePrivmsg },
 };
 
 static void handle(struct Message msg) {
 	if (!msg.cmd) return;
 	for (size_t i = 0; i < ARRAY_LEN(Handlers); ++i) {
 		if (strcmp(msg.cmd, Handlers[i].cmd)) continue;
+		dbExec(db, SQL(BEGIN TRANSACTION;));
 		Handlers[i].fn(&msg);
+		dbExec(db, SQL(COMMIT TRANSACTION;));
 		break;
 	}
 }
