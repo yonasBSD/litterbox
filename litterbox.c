@@ -40,10 +40,21 @@ static void printSQL(sqlite3_stmt *stmt) {
 
 static sqlite3 *db;
 
+static const char *CreateJoins = SQL(
+	CREATE TEMPORARY TABLE joins (
+		nick TEXT NOT NULL,
+		channel TEXT NOT NULL,
+		UNIQUE (nick, channel)
+	);
+);
+
 enum {
 	InsertContext,
 	InsertName,
 	InsertEvent,
+	InsertJoin,
+	DeleteJoin,
+	UpdateJoin,
 };
 static const char *Statements[] = {
 	[InsertContext] = SQL(
@@ -68,11 +79,22 @@ static const char *Statements[] = {
 			AND names.user = :user
 			AND names.host = :host;
 	),
+
+	[InsertJoin] = SQL(
+		INSERT INTO joins (nick, channel) VALUES (:nick, :channel);
+	),
+	[DeleteJoin] = SQL(
+		DELETE FROM joins WHERE nick = :nick AND channel = :channel;
+	),
+	[UpdateJoin] = SQL(
+		UPDATE joins SET nick = :new WHERE nick = :old;
+	),
 };
 
 static sqlite3_stmt *stmts[ARRAY_LEN(Statements)];
 
 static void prepare(void) {
+	dbExec(db, CreateJoins);
 	for (size_t i = 0; i < ARRAY_LEN(stmts); ++i) {
 		stmts[i] = dbPrepare(db, true, Statements[i]);
 	}
@@ -114,6 +136,22 @@ static void insertEvent(
 	dbStep(stmts[InsertEvent]);
 	printSQL(stmts[InsertEvent]);
 	sqlite3_reset(stmts[InsertEvent]);
+}
+
+static void insertJoin(const char *nick, const char *channel) {
+	dbBindText(stmts[InsertJoin], ":nick", nick);
+	dbBindText(stmts[InsertJoin], ":channel", channel);
+	dbStep(stmts[InsertJoin]);
+	printSQL(stmts[InsertJoin]);
+	sqlite3_reset(stmts[InsertJoin]);
+}
+
+static void deleteJoin(const char *nick, const char *channel) {
+	dbBindText(stmts[DeleteJoin], ":nick", nick);
+	dbBindText(stmts[DeleteJoin], ":channel", channel);
+	dbStep(stmts[DeleteJoin]);
+	printSQL(stmts[DeleteJoin]);
+	sqlite3_reset(stmts[DeleteJoin]);
 }
 
 static struct tls *client;
@@ -255,6 +293,32 @@ static void handlePrivmsg(struct Message *msg) {
 	}
 }
 
+static void handleJoin(struct Message *msg) {
+	require(msg, 1);
+	insertJoin(msg->nick, msg->params[0]);
+	insertContext(msg->params[0], false);
+	insertName(msg->nick, msg->user, msg->host);
+	insertEvent(msg->time, Join, NULL, NULL);
+}
+
+static void handlePart(struct Message *msg) {
+	require(msg, 1);
+	deleteJoin(msg->nick, msg->params[0]);
+	insertContext(msg->params[0], false);
+	insertName(msg->nick, msg->user, msg->host);
+	insertEvent(msg->time, Part, NULL, msg->params[1]);
+	// TODO: Clear joins if self.
+}
+
+static void handleKick(struct Message *msg) {
+	require(msg, 2);
+	deleteJoin(msg->params[1], msg->params[0]);
+	insertContext(msg->params[0], false);
+	insertName(msg->nick, msg->user, msg->host);
+	insertEvent(msg->time, Kick, msg->params[1], msg->params[2]);
+	// TODO: Clear joins if self.
+}
+
 static void handlePing(struct Message *msg) {
 	require(msg, 1);
 	format("PONG :%s\r\n", msg->params[0]);
@@ -268,9 +332,12 @@ static const struct {
 	{ "001", false, handleReplyWelcome },
 	{ "005", false, handleReplyISupport },
 	{ "CAP", false, handleCap },
+	{ "JOIN", true, handleJoin },
 	{ "NOTICE", true, handlePrivmsg },
+	{ "PART", true, handlePart },
 	{ "PING", false, handlePing },
 	{ "PRIVMSG", true, handlePrivmsg },
+	{ "KICK", true, handleKick },
 };
 
 static void handle(struct Message msg) {
