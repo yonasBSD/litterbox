@@ -19,7 +19,6 @@
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -126,10 +125,10 @@ static inline void dbBindNull(sqlite3_stmt *stmt, const char *param) {
 }
 
 static inline void
-dbBindInt(sqlite3_stmt *stmt, const char *param, int64_t value) {
-	if (!sqlite3_bind_int64(stmt, dbParam(stmt, param), value)) return;
+dbBindInt(sqlite3_stmt *stmt, const char *param, int value) {
+	if (!sqlite3_bind_int(stmt, dbParam(stmt, param), value)) return;
 	errx(
-		EX_SOFTWARE, "sqlite3_bind_int64: %s",
+		EX_SOFTWARE, "sqlite3_bind_int: %s",
 		sqlite3_errmsg(sqlite3_db_handle(stmt))
 	);
 }
