@@ -55,6 +55,7 @@ enum {
 	InsertJoin,
 	DeleteJoin,
 	UpdateJoin,
+	InsertEvents,
 };
 static const char *Statements[] = {
 	[InsertContext] = SQL(
@@ -75,6 +76,20 @@ static const char *Statements[] = {
 		FROM contexts, names
 		WHERE contexts.network = :network
 			AND contexts.name = :context
+			AND names.nick = :nick
+			AND names.user = :user
+			AND names.host = :host;
+	),
+
+	[InsertEvents] = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			coalesce(datetime(:time), datetime('now')),
+			:type, context, names.name, :target, :message
+		FROM joins, contexts, names
+		WHERE joins.nick = :nick
+			AND contexts.name = joins.channel
+			AND contexts.network = :network
 			AND names.nick = :nick
 			AND names.user = :user
 			AND names.host = :host;
@@ -103,6 +118,7 @@ static void prepare(void) {
 static void bindNetwork(const char *network) {
 	dbBindTextCopy(stmts[InsertContext], ":network", network);
 	dbBindTextCopy(stmts[InsertEvent], ":network", network);
+	dbBindTextCopy(stmts[InsertEvents], ":network", network);
 }
 
 static void insertContext(const char *context, bool query) {
@@ -122,6 +138,9 @@ static void insertName(const char *nick, const char *user, const char *host) {
 	dbBindText(stmts[InsertEvent], ":nick", nick);
 	dbBindText(stmts[InsertEvent], ":user", user);
 	dbBindText(stmts[InsertEvent], ":host", host);
+	dbBindText(stmts[InsertEvents], ":nick", nick);
+	dbBindText(stmts[InsertEvents], ":user", user);
+	dbBindText(stmts[InsertEvents], ":host", host);
 	if (sqlite3_changes(db)) printSQL(stmts[InsertName]);
 	sqlite3_reset(stmts[InsertName]);
 }
@@ -138,6 +157,18 @@ static void insertEvent(
 	sqlite3_reset(stmts[InsertEvent]);
 }
 
+static void insertEvents(
+	const char *time, enum Type type, const char *target, const char *message
+) {
+	dbBindText(stmts[InsertEvents], ":time", time);
+	dbBindInt(stmts[InsertEvents], ":type", type);
+	dbBindText(stmts[InsertEvents], ":target", target);
+	dbBindText(stmts[InsertEvents], ":message", message);
+	dbStep(stmts[InsertEvents]);
+	printSQL(stmts[InsertEvents]);
+	sqlite3_reset(stmts[InsertEvents]);
+}
+
 static void insertJoin(const char *nick, const char *channel) {
 	dbBindText(stmts[InsertJoin], ":nick", nick);
 	dbBindText(stmts[InsertJoin], ":channel", channel);
@@ -152,6 +183,14 @@ static void deleteJoin(const char *nick, const char *channel) {
 	dbStep(stmts[DeleteJoin]);
 	printSQL(stmts[DeleteJoin]);
 	sqlite3_reset(stmts[DeleteJoin]);
+}
+
+static void updateJoin(const char *old, const char *new) {
+	dbBindText(stmts[UpdateJoin], ":old", old);
+	dbBindText(stmts[UpdateJoin], ":new", new);
+	dbStep(stmts[UpdateJoin]);
+	printSQL(stmts[UpdateJoin]);
+	sqlite3_reset(stmts[UpdateJoin]);
 }
 
 static struct tls *client;
@@ -295,28 +334,36 @@ static void handlePrivmsg(struct Message *msg) {
 
 static void handleJoin(struct Message *msg) {
 	require(msg, 1);
-	insertJoin(msg->nick, msg->params[0]);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(msg->time, Join, NULL, NULL);
+	insertJoin(msg->nick, msg->params[0]);
 }
 
 static void handlePart(struct Message *msg) {
 	require(msg, 1);
-	deleteJoin(msg->nick, msg->params[0]);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(msg->time, Part, NULL, msg->params[1]);
+	deleteJoin(msg->nick, msg->params[0]);
 	// TODO: Clear joins if self.
 }
 
 static void handleKick(struct Message *msg) {
 	require(msg, 2);
-	deleteJoin(msg->params[1], msg->params[0]);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(msg->time, Kick, msg->params[1], msg->params[2]);
+	deleteJoin(msg->params[1], msg->params[0]);
 	// TODO: Clear joins if self.
+}
+
+static void handleNick(struct Message *msg) {
+	require(msg, 1);
+	if (!strcmp(msg->nick, self)) set(&self, msg->params[0]);
+	insertName(msg->nick, msg->user, msg->host);
+	insertEvents(msg->time, Nick, msg->params[0], NULL);
+	updateJoin(msg->nick, msg->params[0]);
 }
 
 static void handlePing(struct Message *msg) {
@@ -333,11 +380,12 @@ static const struct {
 	{ "005", false, handleReplyISupport },
 	{ "CAP", false, handleCap },
 	{ "JOIN", true, handleJoin },
+	{ "KICK", true, handleKick },
+	{ "NICK", true, handleNick },
 	{ "NOTICE", true, handlePrivmsg },
 	{ "PART", true, handlePart },
 	{ "PING", false, handlePing },
 	{ "PRIVMSG", true, handlePrivmsg },
-	{ "KICK", true, handleKick },
 };
 
 static void handle(struct Message msg) {
