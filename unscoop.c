@@ -210,9 +210,9 @@ static void bindMatch(
 	sqlite3_stmt *stmt, const char *param, const char *str, regmatch_t match
 ) {
 	if (match.rm_so < 0) {
-		dbBindText(stmt, param, NULL, -1);
+		dbBindNull(stmt, param);
 	} else {
-		dbBindText(stmt, param, &str[match.rm_so], match.rm_eo - match.rm_so);
+		dbBindTextLen(stmt, param, &str[match.rm_so], match.rm_eo - match.rm_so);
 	}
 }
 
@@ -245,8 +245,8 @@ static void prepareInsert(sqlite3 *db) {
 			AND names.host = coalesce(:host, '*');
 	);
 	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
-	paramNetwork = sqlite3_bind_parameter_index(insertEvent, ":network");
-	paramContext = sqlite3_bind_parameter_index(insertEvent, ":context");
+	paramNetwork = dbParam(insertEvent, ":network");
+	paramContext = dbParam(insertEvent, ":context");
 }
 
 static void
@@ -348,12 +348,12 @@ int main(int argc, char *argv[]) {
 	sqlite3_stmt *insertContext = dbPrepare(
 		db, SQLITE_PREPARE_PERSISTENT, InsertContext
 	);
-	dbBindText(insertContext, ":network", network, -1);
-	dbBindText(insertContext, ":context", context, -1);
+	dbBindText(insertContext, ":network", network);
+	dbBindText(insertContext, ":context", context);
 
 	prepareInsert(db);
-	dbBindText(insertEvent, ":network", network, -1);
-	dbBindText(insertEvent, ":context", context, -1);
+	dbBindText(insertEvent, ":network", network);
+	dbBindText(insertEvent, ":context", context);
 
 	size_t sizeTotal = 0;
 	size_t sizeRead = 0;

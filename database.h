@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <sqlite3.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,11 +108,39 @@ dbPrepare(sqlite3 *db, unsigned flags, const char *sql) {
 	return stmt;
 }
 
-static inline void
-dbBindText(sqlite3_stmt *stmt, const char *param, const char *text, int len) {
+static inline int dbParam(sqlite3_stmt *stmt, const char *param) {
 	int index = sqlite3_bind_parameter_index(stmt, param);
-	if (!index) errx(EX_SOFTWARE, "no such parameter %s", param);
-	int error = sqlite3_bind_text(stmt, index, text, len, NULL);
+	if (index) return index;
+	errx(
+		EX_SOFTWARE, "no such parameter %s: %s",
+		param, sqlite3_sql(stmt)
+	);
+}
+
+static inline void dbBindNull(sqlite3_stmt *stmt, const char *param) {
+	if (!sqlite3_bind_null(stmt, dbParam(stmt, param))) return;
+	errx(
+		EX_SOFTWARE, "sqlite3_bind_null: %s",
+		sqlite3_errmsg(sqlite3_db_handle(stmt))
+	);
+}
+
+static inline void
+dbBindInt(sqlite3_stmt *stmt, const char *param, int64_t value) {
+	if (!sqlite3_bind_int64(stmt, dbParam(stmt, param), value)) return;
+	errx(
+		EX_SOFTWARE, "sqlite3_bind_int64: %s",
+		sqlite3_errmsg(sqlite3_db_handle(stmt))
+	);
+}
+
+static inline void dbBindText5(
+	sqlite3_stmt *stmt, const char *param,
+	const char *text, int len, bool copy
+) {
+	int error = sqlite3_bind_text(
+		stmt, dbParam(stmt, param), text, len, (copy ? SQLITE_TRANSIENT : NULL)
+	);
 	if (!error) return;
 	errx(
 		EX_SOFTWARE, "sqlite3_bind_text: %s",
@@ -120,15 +149,18 @@ dbBindText(sqlite3_stmt *stmt, const char *param, const char *text, int len) {
 }
 
 static inline void
-dbBindInt(sqlite3_stmt *stmt, const char *param, int64_t value) {
-	int index = sqlite3_bind_parameter_index(stmt, param);
-	if (!index) errx(EX_SOFTWARE, "no such parameter %s", param);
-	int error = sqlite3_bind_int64(stmt, index, value);
-	if (!error) return;
-	errx(
-		EX_SOFTWARE, "sqlite3_bind_int64: %s",
-		sqlite3_errmsg(sqlite3_db_handle(stmt))
-	);
+dbBindText(sqlite3_stmt *stmt, const char *param, const char *text) {
+	dbBindText5(stmt, param, text, -1, false);
+}
+
+static inline void
+dbBindTextLen(sqlite3_stmt *stmt, const char *param, const char *text, int len) {
+	dbBindText5(stmt, param, text, len, false);
+}
+
+static inline void
+dbBindTextCopy(sqlite3_stmt *stmt, const char *param, const char *text) {
+	dbBindText5(stmt, param, text, -1, true);
 }
 
 static inline int dbStep(sqlite3_stmt *stmt) {
