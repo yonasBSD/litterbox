@@ -28,11 +28,97 @@
 
 #include "database.h"
 
-static sqlite3 *db;
-static struct tls *client;
 static bool verbose;
 
-static void writeAll(const char *ptr, size_t len) {
+static void printSQL(sqlite3_stmt *stmt) {
+	if (!verbose) return;
+	char *sql = sqlite3_expanded_sql(stmt);
+	if (!sql) return;
+	fprintf(stderr, "%s\n", sql);
+	sqlite3_free(sql);
+}
+
+static sqlite3 *db;
+
+enum {
+	InsertContext,
+	InsertName,
+	InsertEvent,
+};
+static const char *Statements[] = {
+	[InsertContext] = SQL(
+		INSERT OR IGNORE INTO contexts (network, name, query)
+		VALUES (:network, :context, :query);
+	),
+
+	[InsertName] = SQL(
+		INSERT OR IGNORE INTO names (nick, user, host)
+		VALUES (:nick, :user, :host);
+	),
+
+	[InsertEvent] = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			coalesce(datetime(:time), datetime('now')),
+			:type, context, names.name, :target, :message
+		FROM contexts, names
+		WHERE contexts.network = :network
+			AND contexts.name = :context
+			AND names.nick = :nick
+			AND names.user = :user
+			AND names.host = :host;
+	),
+};
+
+static sqlite3_stmt *stmts[ARRAY_LEN(Statements)];
+
+static void prepare(void) {
+	for (size_t i = 0; i < ARRAY_LEN(stmts); ++i) {
+		stmts[i] = dbPrepare(db, true, Statements[i]);
+	}
+}
+
+static void bindNetwork(const char *network) {
+	dbBindTextCopy(stmts[InsertContext], ":network", network);
+	dbBindTextCopy(stmts[InsertEvent], ":network", network);
+}
+
+static void insertContext(const char *context, bool query) {
+	dbBindText(stmts[InsertContext], ":context", context);
+	dbBindInt(stmts[InsertContext], ":query", query);
+	dbStep(stmts[InsertContext]);
+	dbBindText(stmts[InsertEvent], ":context", context);
+	if (sqlite3_changes(db)) printSQL(stmts[InsertContext]);
+	sqlite3_reset(stmts[InsertContext]);
+}
+
+static void insertName(const char *nick, const char *user, const char *host) {
+	dbBindText(stmts[InsertName], ":nick", nick);
+	dbBindText(stmts[InsertName], ":user", user);
+	dbBindText(stmts[InsertName], ":host", host);
+	dbStep(stmts[InsertName]);
+	dbBindText(stmts[InsertEvent], ":nick", nick);
+	dbBindText(stmts[InsertEvent], ":user", user);
+	dbBindText(stmts[InsertEvent], ":host", host);
+	if (sqlite3_changes(db)) printSQL(stmts[InsertName]);
+	sqlite3_reset(stmts[InsertName]);
+}
+
+static void insertEvent(
+	const char *time, enum Type type, const char *target, const char *message
+) {
+	dbBindText(stmts[InsertEvent], ":time", time);
+	dbBindInt(stmts[InsertEvent], ":type", type);
+	dbBindText(stmts[InsertEvent], ":target", target);
+	dbBindText(stmts[InsertEvent], ":message", message);
+	dbStep(stmts[InsertEvent]);
+	printSQL(stmts[InsertEvent]);
+	sqlite3_reset(stmts[InsertEvent]);
+}
+
+static struct tls *client;
+
+static void clientWrite(const char *ptr, size_t len) {
 	while (len) {
 		ssize_t ret = tls_write(client, ptr, len);
 		if (ret == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT) continue;
@@ -50,7 +136,7 @@ static void format(const char *format, ...) {
 	va_end(ap);
 	assert((size_t)len < sizeof(buf));
 	if (verbose) printf("%s", buf);
-	writeAll(buf, len);
+	clientWrite(buf, len);
 }
 
 enum { ParamCap = 15 };
@@ -101,88 +187,6 @@ static void require(const struct Message *msg, size_t len) {
 		if (msg->params[i]) continue;
 		errx(EX_PROTOCOL, "%s missing parameter %zu", msg->cmd, 1 + i);
 	}
-}
-
-enum {
-	InsertContext,
-	InsertName,
-	InsertEvent,
-	StmtsLen,
-};
-static sqlite3_stmt *stmts[StmtsLen];
-
-static void printSQL(sqlite3_stmt *stmt) {
-	if (!verbose) return;
-	char *sql = sqlite3_expanded_sql(stmt);
-	if (!sql) return;
-	fprintf(stderr, "%s\n", sql);
-	sqlite3_free(sql);
-}
-
-static void prepare(void) {
-	const char *insertContext = SQL(
-		INSERT OR IGNORE INTO contexts (network, name, query)
-		VALUES (:network, :context, :query);
-	);
-	stmts[InsertContext] = dbPrepare(db, true, insertContext);
-
-	const char *insertName = SQL(
-		INSERT OR IGNORE INTO names (nick, user, host)
-		VALUES (:nick, :user, :host);
-	);
-	stmts[InsertName] = dbPrepare(db, true, insertName);
-
-	const char *insertEvent = SQL(
-		INSERT INTO events (time, type, context, name, target, message)
-		SELECT
-			coalesce(datetime(:time), datetime('now')),
-			:type, context, names.name, :target, :message
-		FROM contexts, names
-		WHERE contexts.network = :network
-			AND contexts.name = :context
-			AND names.nick = :nick
-			AND names.user = :user
-			AND names.host = :host;
-	);
-	stmts[InsertEvent] = dbPrepare(db, true, insertEvent);
-}
-
-static void bindNetwork(const char *network) {
-	dbBindTextCopy(stmts[InsertContext], ":network", network);
-	dbBindTextCopy(stmts[InsertEvent], ":network", network);
-}
-
-static void insertContext(const char *context, bool query) {
-	dbBindText(stmts[InsertContext], ":context", context);
-	dbBindInt(stmts[InsertContext], ":query", query);
-	dbStep(stmts[InsertContext]);
-	dbBindText(stmts[InsertEvent], ":context", context);
-	if (sqlite3_changes(db)) printSQL(stmts[InsertContext]);
-	sqlite3_reset(stmts[InsertContext]);
-}
-
-static void insertName(const char *nick, const char *user, const char *host) {
-	dbBindText(stmts[InsertName], ":nick", nick);
-	dbBindText(stmts[InsertName], ":user", user);
-	dbBindText(stmts[InsertName], ":host", host);
-	dbStep(stmts[InsertName]);
-	dbBindText(stmts[InsertEvent], ":nick", nick);
-	dbBindText(stmts[InsertEvent], ":user", user);
-	dbBindText(stmts[InsertEvent], ":host", host);
-	if (sqlite3_changes(db)) printSQL(stmts[InsertName]);
-	sqlite3_reset(stmts[InsertName]);
-}
-
-static void insertEvent(
-	const char *time, enum Type type, const char *target, const char *message
-) {
-	dbBindText(stmts[InsertEvent], ":time", time);
-	dbBindInt(stmts[InsertEvent], ":type", type);
-	dbBindText(stmts[InsertEvent], ":target", target);
-	dbBindText(stmts[InsertEvent], ":message", message);
-	dbStep(stmts[InsertEvent]);
-	printSQL(stmts[InsertEvent]);
-	sqlite3_reset(stmts[InsertEvent]);
 }
 
 static const char *join;
