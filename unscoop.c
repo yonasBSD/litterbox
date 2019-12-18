@@ -226,7 +226,7 @@ static void prepareInsert(sqlite3 *db) {
 		INSERT OR IGNORE INTO names (nick, user, host)
 		VALUES (:nick, coalesce(:user, '*'), coalesce(:host, '*'));
 	);
-	insertName = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertName);
+	insertName = dbPrepare(db, true, InsertName);
 
 	const char *InsertEvent = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
@@ -244,7 +244,7 @@ static void prepareInsert(sqlite3 *db) {
 			AND names.user = coalesce(:user, '*')
 			AND names.host = coalesce(:host, '*');
 	);
-	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
+	insertEvent = dbPrepare(db, true, InsertEvent);
 	paramNetwork = dbParam(insertEvent, ":network");
 	paramContext = dbParam(insertEvent, ":context");
 }
@@ -345,9 +345,7 @@ int main(int argc, char *argv[]) {
 			NOT (:context LIKE '#%' OR :context LIKE '&%')
 		);
 	);
-	sqlite3_stmt *insertContext = dbPrepare(
-		db, SQLITE_PREPARE_PERSISTENT, InsertContext
-	);
+	sqlite3_stmt *insertContext = dbPrepare(db, true, InsertContext);
 	dbBindText(insertContext, ":network", network);
 	dbBindText(insertContext, ":context", context);
 

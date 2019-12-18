@@ -103,24 +103,36 @@ static void require(const struct Message *msg, size_t len) {
 	}
 }
 
-static sqlite3_stmt *insertContext;
-static sqlite3_stmt *insertName;
-static sqlite3_stmt *insertEvent;
+enum {
+	InsertContext,
+	InsertName,
+	InsertEvent,
+	StmtsLen,
+};
+static sqlite3_stmt *stmts[StmtsLen];
 
-static void prepareInsert(void) {
-	const char *InsertContext = SQL(
+static void printSQL(sqlite3_stmt *stmt) {
+	if (!verbose) return;
+	char *sql = sqlite3_expanded_sql(stmt);
+	if (!sql) return;
+	fprintf(stderr, "%s\n", sql);
+	sqlite3_free(sql);
+}
+
+static void prepare(void) {
+	const char *insertContext = SQL(
 		INSERT OR IGNORE INTO contexts (network, name, query)
 		VALUES (:network, :context, :query);
 	);
-	insertContext = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertContext);
+	stmts[InsertContext] = dbPrepare(db, true, insertContext);
 
-	const char *InsertName = SQL(
+	const char *insertName = SQL(
 		INSERT OR IGNORE INTO names (nick, user, host)
 		VALUES (:nick, :user, :host);
 	);
-	insertName = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertName);
+	stmts[InsertName] = dbPrepare(db, true, insertName);
 
-	const char *InsertEvent = SQL(
+	const char *insertEvent = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
 		SELECT
 			coalesce(datetime(:time), datetime('now')),
@@ -132,57 +144,45 @@ static void prepareInsert(void) {
 			AND names.user = :user
 			AND names.host = :host;
 	);
-	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
+	stmts[InsertEvent] = dbPrepare(db, true, insertEvent);
 }
 
 static void bindNetwork(const char *network) {
-	dbBindTextCopy(insertContext, ":network", network);
-	dbBindTextCopy(insertEvent, ":network", network);
-}
-static void bindContext(const char *context, bool query) {
-	dbBindText(insertContext, ":context", context);
-	dbBindInt(insertContext, ":query", query);
-	dbBindText(insertEvent, ":context", context);
-}
-static void bindName(const char *nick, const char *user, const char *host) {
-	dbBindText(insertName, ":nick", nick);
-	dbBindText(insertName, ":user", user);
-	dbBindText(insertName, ":host", host);
-	dbBindText(insertEvent, ":nick", nick);
-	dbBindText(insertEvent, ":user", user);
-	dbBindText(insertEvent, ":host", host);
+	dbBindTextCopy(stmts[InsertContext], ":network", network);
+	dbBindTextCopy(stmts[InsertEvent], ":network", network);
 }
 
-static void printSQL(sqlite3_stmt *stmt) {
-	char *sql = sqlite3_expanded_sql(stmt);
-	if (!sql) return;
-	fprintf(stderr, "%s\n", sql);
-	sqlite3_free(sql);
+static void insertContext(const char *context, bool query) {
+	dbBindText(stmts[InsertContext], ":context", context);
+	dbBindInt(stmts[InsertContext], ":query", query);
+	dbStep(stmts[InsertContext]);
+	dbBindText(stmts[InsertEvent], ":context", context);
+	if (sqlite3_changes(db)) printSQL(stmts[InsertContext]);
+	sqlite3_reset(stmts[InsertContext]);
 }
 
-static void insert(void) {
-	dbExec(db, SQL(BEGIN TRANSACTION;));
+static void insertName(const char *nick, const char *user, const char *host) {
+	dbBindText(stmts[InsertName], ":nick", nick);
+	dbBindText(stmts[InsertName], ":user", user);
+	dbBindText(stmts[InsertName], ":host", host);
+	dbStep(stmts[InsertName]);
+	dbBindText(stmts[InsertEvent], ":nick", nick);
+	dbBindText(stmts[InsertEvent], ":user", user);
+	dbBindText(stmts[InsertEvent], ":host", host);
+	if (sqlite3_changes(db)) printSQL(stmts[InsertName]);
+	sqlite3_reset(stmts[InsertName]);
+}
 
-	dbStep(insertContext);
-	if (verbose && sqlite3_changes(db)) printSQL(insertContext);
-
-	dbStep(insertName);
-	if (verbose && sqlite3_changes(db)) printSQL(insertName);
-
-	dbStep(insertEvent);
-	if (verbose) printSQL(insertEvent);
-
-	dbExec(db, SQL(COMMIT TRANSACTION;));
-
-	sqlite3_reset(insertContext);
-	sqlite3_reset(insertName);
-	sqlite3_reset(insertEvent);
-	bindContext(NULL, false);
-	bindName(NULL, NULL, NULL);
-	dbBindNull(insertEvent, ":time");
-	dbBindNull(insertEvent, ":type");
-	dbBindNull(insertEvent, ":target");
-	dbBindNull(insertEvent, ":message");
+static void insertEvent(
+	const char *time, enum Type type, const char *target, const char *message
+) {
+	dbBindText(stmts[InsertEvent], ":time", time);
+	dbBindInt(stmts[InsertEvent], ":type", type);
+	dbBindText(stmts[InsertEvent], ":target", target);
+	dbBindText(stmts[InsertEvent], ":message", message);
+	dbStep(stmts[InsertEvent]);
+	printSQL(stmts[InsertEvent]);
+	sqlite3_reset(stmts[InsertEvent]);
 }
 
 static const char *join;
@@ -231,29 +231,24 @@ static void handlePrivmsg(struct Message *msg) {
 	require(msg, 2);
 	if (!msg->nick) return;
 
-	bindName(msg->nick, msg->user, msg->host);
+	insertName(msg->nick, msg->user, msg->host);
 	if (strchr(chanTypes, msg->params[0][0])) {
-		bindContext(msg->params[0], false);
+		insertContext(msg->params[0], false);
 	} else if (strcmp(msg->params[0], self)) {
-		bindContext(msg->params[0], true);
+		insertContext(msg->params[0], true);
 	} else {
-		bindContext(msg->nick, true);
+		insertContext(msg->nick, true);
 	}
 
-	dbBindText(insertEvent, ":time", msg->time);
-	dbBindText(insertEvent, ":message", msg->params[1]);
 	if (!strncmp(msg->params[1], "\1ACTION ", 8)) {
-		msg->params[1] += 8;
-		msg->params[1][strcspn(msg->params[1], "\1")] = '\0';
-		dbBindInt(insertEvent, ":type", Action);
-		dbBindText(insertEvent, ":message", msg->params[1]);
+		char *action = &msg->params[1][8];
+		action[strcspn(action, "\1")] = '\0';
+		insertEvent(msg->time, Action, NULL, action);
 	} else if (!strcmp(msg->cmd, "NOTICE")) {
-		dbBindInt(insertEvent, ":type", Notice);
+		insertEvent(msg->time, Notice, NULL, msg->params[1]);
 	} else {
-		dbBindInt(insertEvent, ":type", Privmsg);
+		insertEvent(msg->time, Privmsg, NULL, msg->params[1]);
 	}
-
-	insert();
 }
 
 static void handlePing(struct Message *msg) {
@@ -336,7 +331,7 @@ int main(int argc, char *argv[]) {
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
 
-	prepareInsert();
+	prepare();
 	bindNetwork(host);
 
 	client = tls_client();

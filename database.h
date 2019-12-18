@@ -100,9 +100,11 @@ static inline sqlite3 *dbFind(int flags) {
 }
 
 static inline sqlite3_stmt *
-dbPrepare(sqlite3 *db, unsigned flags, const char *sql) {
+dbPrepare(sqlite3 *db, bool persistent, const char *sql) {
 	sqlite3_stmt *stmt;
-	int error = sqlite3_prepare_v3(db, sql, -1, flags, &stmt, NULL);
+	int error = sqlite3_prepare_v3(
+		db, sql, -1, (persistent ? SQLITE_PREPARE_PERSISTENT : 0), &stmt, NULL
+	);
 	if (error) errx(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
 	return stmt;
 }
@@ -172,7 +174,7 @@ static inline int dbStep(sqlite3_stmt *stmt) {
 }
 
 static inline int dbVersion(sqlite3 *db) {
-	sqlite3_stmt *stmt = dbPrepare(db, 0, SQL(PRAGMA user_version;));
+	sqlite3_stmt *stmt = dbPrepare(db, false, SQL(PRAGMA user_version;));
 	dbStep(stmt);
 	int version = sqlite3_column_int(stmt, 0);
 	sqlite3_finalize(stmt);
