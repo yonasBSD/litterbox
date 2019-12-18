@@ -96,20 +96,98 @@ static struct Message parse(char *line) {
 	return msg;
 }
 
-static void require(const struct Message *msg, bool nick, size_t len) {
-	if (nick && !msg->nick) {
-		errx(EX_PROTOCOL, "%s missing origin nick", msg->cmd);
-	}
+static void require(const struct Message *msg, size_t len) {
 	for (size_t i = 0; i < len; ++i) {
 		if (msg->params[i]) continue;
 		errx(EX_PROTOCOL, "%s missing parameter %zu", msg->cmd, 1 + i);
 	}
 }
 
+static sqlite3_stmt *insertContext;
+static sqlite3_stmt *insertName;
+static sqlite3_stmt *insertEvent;
+
+static void prepareInsert(void) {
+	const char *InsertContext = SQL(
+		INSERT OR IGNORE INTO contexts (network, name, query)
+		VALUES (:network, :context, :query);
+	);
+	insertContext = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertContext);
+
+	const char *InsertName = SQL(
+		INSERT OR IGNORE INTO names (nick, user, host)
+		VALUES (:nick, :user, :host);
+	);
+	insertName = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertName);
+
+	const char *InsertEvent = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			coalesce(datetime(:time), datetime('now')),
+			:type, context, names.name, :target, :message
+		FROM contexts, names
+		WHERE contexts.network = :network
+			AND contexts.name = :context
+			AND names.nick = :nick
+			AND names.user = :user
+			AND names.host = :host;
+	);
+	insertEvent = dbPrepare(db, SQLITE_PREPARE_PERSISTENT, InsertEvent);
+}
+
+static void bindNetwork(const char *network) {
+	dbBindTextCopy(insertContext, ":network", network);
+	dbBindTextCopy(insertEvent, ":network", network);
+}
+static void bindContext(const char *context, bool query) {
+	dbBindText(insertContext, ":context", context);
+	dbBindInt(insertContext, ":query", query);
+	dbBindText(insertEvent, ":context", context);
+}
+static void bindName(const char *nick, const char *user, const char *host) {
+	dbBindText(insertName, ":nick", nick);
+	dbBindText(insertName, ":user", user);
+	dbBindText(insertName, ":host", host);
+	dbBindText(insertEvent, ":nick", nick);
+	dbBindText(insertEvent, ":user", user);
+	dbBindText(insertEvent, ":host", host);
+}
+
+static void printSQL(sqlite3_stmt *stmt) {
+	char *sql = sqlite3_expanded_sql(stmt);
+	if (!sql) return;
+	fprintf(stderr, "%s\n", sql);
+	sqlite3_free(sql);
+}
+
+static void insert(void) {
+	dbExec(db, SQL(BEGIN TRANSACTION;));
+
+	dbStep(insertContext);
+	if (verbose && sqlite3_changes(db)) printSQL(insertContext);
+
+	dbStep(insertName);
+	if (verbose && sqlite3_changes(db)) printSQL(insertName);
+
+	dbStep(insertEvent);
+	if (verbose) printSQL(insertEvent);
+
+	dbExec(db, SQL(COMMIT TRANSACTION;));
+
+	sqlite3_reset(insertContext);
+	sqlite3_reset(insertName);
+	sqlite3_reset(insertEvent);
+	bindContext(NULL, false);
+	bindName(NULL, NULL, NULL);
+	dbBindNull(insertEvent, ":time");
+	dbBindNull(insertEvent, ":type");
+	dbBindNull(insertEvent, ":target");
+	dbBindNull(insertEvent, ":message");
+}
+
 static const char *join;
 
 static char *self;
-static char *network;
 static char *chanTypes;
 static char *prefixes;
 
@@ -127,7 +205,7 @@ static void handleCap(struct Message *msg) {
 }
 
 static void handleReplyWelcome(struct Message *msg) {
-	require(msg, false, 1);
+	require(msg, 1);
 	set(&self, msg->params[0]);
 	format("JOIN :%s\r\n", join);
 }
@@ -138,7 +216,7 @@ static void handleReplyISupport(struct Message *msg) {
 		char *key = strsep(&msg->params[i], "=");
 		if (!msg->params[i]) continue;
 		if (!strcmp(key, "NETWORK")) {
-			set(&network, msg->params[i]);
+			bindNetwork(msg->params[i]);
 		} else if (!strcmp(key, "CHANTYPES")) {
 			set(&chanTypes, msg->params[i]);
 		} else if (!strcmp(key, "PREFIX")) {
@@ -149,8 +227,37 @@ static void handleReplyISupport(struct Message *msg) {
 	}
 }
 
+static void handlePrivmsg(struct Message *msg) {
+	require(msg, 2);
+	if (!msg->nick) return;
+
+	bindName(msg->nick, msg->user, msg->host);
+	if (strchr(chanTypes, msg->params[0][0])) {
+		bindContext(msg->params[0], false);
+	} else if (strcmp(msg->params[0], self)) {
+		bindContext(msg->params[0], true);
+	} else {
+		bindContext(msg->nick, true);
+	}
+
+	dbBindText(insertEvent, ":time", msg->time);
+	dbBindText(insertEvent, ":message", msg->params[1]);
+	if (!strncmp(msg->params[1], "\1ACTION ", 8)) {
+		msg->params[1] += 8;
+		msg->params[1][strcspn(msg->params[1], "\1")] = '\0';
+		dbBindInt(insertEvent, ":type", Action);
+		dbBindText(insertEvent, ":message", msg->params[1]);
+	} else if (!strcmp(msg->cmd, "NOTICE")) {
+		dbBindInt(insertEvent, ":type", Notice);
+	} else {
+		dbBindInt(insertEvent, ":type", Privmsg);
+	}
+
+	insert();
+}
+
 static void handlePing(struct Message *msg) {
-	require(msg, false, 1);
+	require(msg, 1);
 	format("PONG :%s\r\n", msg->params[0]);
 }
 
@@ -161,7 +268,9 @@ static const struct {
 	{ "001", handleReplyWelcome },
 	{ "005", handleReplyISupport },
 	{ "CAP", handleCap },
+	{ "NOTICE", handlePrivmsg },
 	{ "PING", handlePing },
+	{ "PRIVMSG", handlePrivmsg },
 };
 
 static void handle(struct Message msg) {
@@ -224,9 +333,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (!host) errx(EX_USAGE, "host required");
-	set(&network, host);
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
+
+	prepareInsert();
+	bindNetwork(host);
 
 	client = tls_client();
 	if (!client) errx(EX_SOFTWARE, "tls_client");
@@ -273,4 +384,6 @@ int main(int argc, char *argv[]) {
 		len -= line - buf;
 		memmove(buf, line, len);
 	}
+
+	// TODO: Clean up statements and db on exit.
 }
