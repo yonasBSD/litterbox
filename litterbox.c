@@ -368,9 +368,13 @@ static void handle(struct Message msg) {
 	if (!msg.cmd) return;
 	for (size_t i = 0; i < ARRAY_LEN(Handlers); ++i) {
 		if (strcmp(msg.cmd, Handlers[i].cmd)) continue;
-		dbExec(db, SQL(BEGIN TRANSACTION;));
-		Handlers[i].fn(&msg);
-		dbExec(db, SQL(COMMIT TRANSACTION;));
+		if (Handlers[i].transaction) {
+			dbExec(db, SQL(BEGIN TRANSACTION;));
+			Handlers[i].fn(&msg);
+			dbExec(db, SQL(COMMIT TRANSACTION;));
+		} else {
+			Handlers[i].fn(&msg);
+		}
 		break;
 	}
 }
