@@ -221,12 +221,12 @@ static sqlite3_stmt *insertEvent;
 static int paramNetwork;
 static int paramContext;
 
-static void prepareInsert(sqlite3 *db) {
+static void prepareInsert(void) {
 	const char *InsertName = SQL(
 		INSERT OR IGNORE INTO names (nick, user, host)
 		VALUES (:nick, coalesce(:user, '*'), coalesce(:host, '*'));
 	);
-	insertName = dbPrepare(db, true, InsertName);
+	dbPersist(&insertName, InsertName);
 
 	const char *InsertEvent = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
@@ -244,7 +244,7 @@ static void prepareInsert(sqlite3 *db) {
 			AND names.user = coalesce(:user, '*')
 			AND names.host = coalesce(:host, '*');
 	);
-	insertEvent = dbPrepare(db, true, InsertEvent);
+	dbPersist(&insertEvent, InsertEvent);
 	paramNetwork = dbParam(insertEvent, ":network");
 	paramContext = dbParam(insertEvent, ":context");
 }
@@ -293,7 +293,7 @@ static void dedupEvents(sqlite3 *db) {
 		), duplicates AS (SELECT event FROM potentials WHERE diff > 50)
 		DELETE FROM events WHERE event IN duplicates;
 	);
-	dbExec(db, Delete);
+	dbExec(Delete);
 	printf("deleted %d events\n", sqlite3_changes(db));
 }
 
@@ -317,9 +317,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	sqlite3 *db = dbFind(path, SQLITE_OPEN_READWRITE);
-	if (!db) errx(EX_NOINPUT, "database not found");
-	if (dbVersion(db) != DatabaseVersion) {
+	dbFind(path, SQLITE_OPEN_READWRITE);
+	if (dbVersion() != DatabaseVersion) {
 		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
 	}
 
@@ -335,6 +334,7 @@ int main(int argc, char *argv[]) {
 		regex[i] = compile(format->matchers[i].pattern);
 	}
 
+	sqlite3_stmt *insertContext = NULL;
 	const char *InsertContext = SQL(
 		INSERT OR IGNORE INTO contexts (network, name, query)
 		VALUES (
@@ -342,11 +342,11 @@ int main(int argc, char *argv[]) {
 			NOT (:context LIKE '#%' OR :context LIKE '&%')
 		);
 	);
-	sqlite3_stmt *insertContext = dbPrepare(db, true, InsertContext);
+	dbPersist(&insertContext, InsertContext);
 	dbBindText(insertContext, ":network", network);
 	dbBindText(insertContext, ":context", context);
 
-	prepareInsert(db);
+	prepareInsert();
 	dbBindText(insertEvent, ":network", network);
 	dbBindText(insertEvent, ":context", context);
 
@@ -376,7 +376,7 @@ int main(int argc, char *argv[]) {
 
 		FILE *file = fopen(argv[i], "r");
 		if (!file) err(EX_NOINPUT, "%s", argv[i]);
-		dbExec(db, SQL(BEGIN TRANSACTION;));
+		dbExec(SQL(BEGIN TRANSACTION;));
 
 		regmatch_t pathNetwork = match[i][format->network];
 		regmatch_t pathContext = match[i][format->context];
@@ -403,12 +403,9 @@ int main(int argc, char *argv[]) {
 		if (ferror(file)) err(EX_IOERR, "%s", argv[i]);
 
 		fclose(file);
-		dbExec(db, SQL(COMMIT TRANSACTION;));
+		dbExec(SQL(COMMIT TRANSACTION;));
 	}
 	printf("\n");
 
-	sqlite3_finalize(insertContext);
-	sqlite3_finalize(insertName);
-	sqlite3_finalize(insertEvent);
-	sqlite3_close(db);
+	dbClose();
 }
