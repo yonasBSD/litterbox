@@ -410,7 +410,7 @@ int main(int argc, char *argv[]) {
 	int flags = SQLITE_OPEN_READWRITE;
 	if (init) flags |= SQLITE_OPEN_CREATE;
 
-	db = (path ? dbOpen(path, flags) : dbFind(flags));
+	db = dbFind(path, flags);
 	if (!db) errx(EX_NOINPUT, "database not found");
 
 	if (init) {

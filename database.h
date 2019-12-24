@@ -74,26 +74,28 @@ static inline sqlite3 *dbOpen(char *path, int flags) {
 	return db;
 }
 
-static inline sqlite3 *dbFind(int flags) {
+static inline sqlite3 *dbFind(char *path, int flags) {
+	if (path) return dbOpen(path, flags);
+
 	const char *home = getenv("HOME");
 	const char *dataHome = getenv("XDG_DATA_HOME");
 	const char *dataDirs = getenv("XDG_DATA_DIRS");
 
-	char path[PATH_MAX];
+	char buf[PATH_MAX];
 	if (dataHome) {
-		snprintf(path, sizeof(path), "%s/" DATABASE_PATH, dataHome);
+		snprintf(buf, sizeof(buf), "%s/" DATABASE_PATH, dataHome);
 	} else {
 		if (!home) errx(EX_CONFIG, "HOME unset");
-		snprintf(path, sizeof(path), "%s/.local/share/" DATABASE_PATH, home);
+		snprintf(buf, sizeof(buf), "%s/.local/share/" DATABASE_PATH, home);
 	}
-	sqlite3 *db = dbOpen(path, flags);
+	sqlite3 *db = dbOpen(buf, flags);
 	if (db) return db;
 
 	if (!dataDirs) dataDirs = "/usr/local/share:/usr/share";
 	while (*dataDirs) {
 		size_t len = strcspn(dataDirs, ":");
-		snprintf(path, sizeof(path), "%.*s/" DATABASE_PATH, (int)len, dataDirs);
-		db = dbOpen(path, flags);
+		snprintf(buf, sizeof(buf), "%.*s/" DATABASE_PATH, (int)len, dataDirs);
+		db = dbOpen(buf, flags);
 		if (db) return db;
 		dataDirs += len;
 		if (*dataDirs) dataDirs++;
