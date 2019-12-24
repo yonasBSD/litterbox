@@ -318,6 +318,16 @@ static void handlePrivmsg(struct Message *msg) {
 	);
 }
 
+static void handleReplyNames(struct Message *msg) {
+	require(msg, 3);
+	char *names = msg->params[3];
+	while (names) {
+		char *nick = strsep(&names, " ");
+		nick += strspn(nick, prefixes);
+		insertJoin(nick, msg->params[2]);
+	}
+}
+
 static void handleJoin(struct Message *msg) {
 	require(msg, 1);
 	insertContext(msg->params[0], false);
@@ -403,6 +413,7 @@ static const struct {
 } Handlers[] = {
 	{ "001", false, handleReplyWelcome },
 	{ "005", false, handleReplyISupport },
+	{ "353", true, handleReplyNames },
 	{ "CAP", false, handleCap },
 	{ "JOIN", true, handleJoin },
 	{ "KICK", true, handleKick },
