@@ -167,12 +167,13 @@ static void updateJoin(const char *old, const char *new) {
 	dbRun(stmt);
 }
 
-static void clearJoins(const char *channel) {
+static void clearJoins(const char *nick, const char *channel) {
 	static sqlite3_stmt *stmt;
 	const char *sql = SQL(
-		DELETE FROM joins WHERE channel = :channel;
+		DELETE FROM joins WHERE nick = :nick OR channel = :channel;
 	);
 	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":nick", nick);
 	dbBindText(stmt, ":channel", channel);
 	dbRun(stmt);
 }
@@ -337,7 +338,7 @@ static void handlePart(struct Message *msg) {
 		msg->nick, msg->user, msg->host, NULL, msg->params[1]
 	);
 	if (!strcmp(msg->nick, self)) {
-		clearJoins(msg->params[0]);
+		clearJoins(NULL, msg->params[0]);
 	} else {
 		deleteJoin(msg->nick, msg->params[0]);
 	}
@@ -345,6 +346,7 @@ static void handlePart(struct Message *msg) {
 
 static void handleKick(struct Message *msg) {
 	require(msg, 2);
+	// FIXME: Sometimes the server kicks people...
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(
@@ -353,7 +355,7 @@ static void handleKick(struct Message *msg) {
 		msg->params[1], msg->params[2]
 	);
 	if (!strcmp(msg->params[1], self)) {
-		clearJoins(msg->params[0]);
+		clearJoins(NULL, msg->params[0]);
 	} else {
 		deleteJoin(msg->params[1], msg->params[0]);
 	}
@@ -368,6 +370,15 @@ static void handleNick(struct Message *msg) {
 		msg->nick, msg->user, msg->host, msg->params[0], NULL
 	);
 	updateJoin(msg->nick, msg->params[0]);
+}
+
+static void handleQuit(struct Message *msg) {
+	insertName(msg->nick, msg->user, msg->host);
+	insertEvents(
+		msg->time, Quit,
+		msg->nick, msg->user, msg->host, NULL, msg->params[0]
+	);
+	clearJoins(msg->nick, NULL);
 }
 
 static void handlePing(struct Message *msg) {
@@ -390,6 +401,7 @@ static const struct {
 	{ "PART", true, handlePart },
 	{ "PING", false, handlePing },
 	{ "PRIVMSG", true, handlePrivmsg },
+	{ "QUIT", true, handleQuit },
 };
 
 static void handle(struct Message msg) {
