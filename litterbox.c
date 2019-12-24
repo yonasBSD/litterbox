@@ -381,6 +381,16 @@ static void handleQuit(struct Message *msg) {
 	clearJoins(msg->nick, NULL);
 }
 
+static void handleTopic(struct Message *msg) {
+	require(msg, 1);
+	insertContext(msg->params[0], false);
+	insertName(msg->nick, msg->user, msg->host);
+	insertEvent(
+		msg->time, Topic, msg->params[0],
+		msg->nick, msg->user, msg->host, NULL, msg->params[1]
+	);
+}
+
 static void handlePing(struct Message *msg) {
 	require(msg, 1);
 	format("PONG :%s\r\n", msg->params[0]);
@@ -402,6 +412,7 @@ static const struct {
 	{ "PING", false, handlePing },
 	{ "PRIVMSG", true, handlePrivmsg },
 	{ "QUIT", true, handleQuit },
+	{ "TOPIC", true, handleTopic },
 };
 
 static void handle(struct Message msg) {
