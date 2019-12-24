@@ -44,6 +44,8 @@ enum Type {
 	Topic,
 };
 
+static bool verbose;
+
 static inline void dbExec(sqlite3 *db, const char *sql) {
 	int error = sqlite3_exec(db, sql, NULL, NULL, NULL);
 	if (error) errx(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
@@ -171,6 +173,16 @@ static inline int dbStep(sqlite3_stmt *stmt) {
 		EX_SOFTWARE, "%s: %s",
 		sqlite3_errmsg(sqlite3_db_handle(stmt)), sqlite3_expanded_sql(stmt)
 	);
+}
+
+static inline void dbRun(sqlite3_stmt *stmt) {
+	dbStep(stmt);
+	if (verbose && sqlite3_changes(sqlite3_db_handle(stmt))) {
+		char *sql = sqlite3_expanded_sql(stmt);
+		if (sql) fprintf(stderr, "%s\n", sql);
+		sqlite3_free(sql);
+	}
+	sqlite3_reset(stmt);
 }
 
 static inline int dbVersion(sqlite3 *db) {

@@ -28,16 +28,6 @@
 
 #include "database.h"
 
-static bool verbose;
-
-static void printSQL(sqlite3_stmt *stmt) {
-	if (!verbose) return;
-	char *sql = sqlite3_expanded_sql(stmt);
-	if (!sql) return;
-	fprintf(stderr, "%s\n", sql);
-	sqlite3_free(sql);
-}
-
 static sqlite3 *db;
 
 static const char *CreateJoins = SQL(
@@ -124,25 +114,21 @@ static void bindNetwork(const char *network) {
 static void insertContext(const char *context, bool query) {
 	dbBindText(stmts[InsertContext], ":context", context);
 	dbBindInt(stmts[InsertContext], ":query", query);
-	dbStep(stmts[InsertContext]);
+	dbRun(stmts[InsertContext]);
 	dbBindText(stmts[InsertEvent], ":context", context);
-	if (sqlite3_changes(db)) printSQL(stmts[InsertContext]);
-	sqlite3_reset(stmts[InsertContext]);
 }
 
 static void insertName(const char *nick, const char *user, const char *host) {
 	dbBindText(stmts[InsertName], ":nick", nick);
 	dbBindText(stmts[InsertName], ":user", user);
 	dbBindText(stmts[InsertName], ":host", host);
-	dbStep(stmts[InsertName]);
+	dbRun(stmts[InsertName]);
 	dbBindText(stmts[InsertEvent], ":nick", nick);
 	dbBindText(stmts[InsertEvent], ":user", user);
 	dbBindText(stmts[InsertEvent], ":host", host);
 	dbBindText(stmts[InsertEvents], ":nick", nick);
 	dbBindText(stmts[InsertEvents], ":user", user);
 	dbBindText(stmts[InsertEvents], ":host", host);
-	if (sqlite3_changes(db)) printSQL(stmts[InsertName]);
-	sqlite3_reset(stmts[InsertName]);
 }
 
 static void insertEvent(
@@ -152,9 +138,7 @@ static void insertEvent(
 	dbBindInt(stmts[InsertEvent], ":type", type);
 	dbBindText(stmts[InsertEvent], ":target", target);
 	dbBindText(stmts[InsertEvent], ":message", message);
-	dbStep(stmts[InsertEvent]);
-	printSQL(stmts[InsertEvent]);
-	sqlite3_reset(stmts[InsertEvent]);
+	dbRun(stmts[InsertEvent]);
 }
 
 static void insertEvents(
@@ -164,33 +148,25 @@ static void insertEvents(
 	dbBindInt(stmts[InsertEvents], ":type", type);
 	dbBindText(stmts[InsertEvents], ":target", target);
 	dbBindText(stmts[InsertEvents], ":message", message);
-	dbStep(stmts[InsertEvents]);
-	printSQL(stmts[InsertEvents]);
-	sqlite3_reset(stmts[InsertEvents]);
+	dbRun(stmts[InsertEvents]);
 }
 
 static void insertJoin(const char *nick, const char *channel) {
 	dbBindText(stmts[InsertJoin], ":nick", nick);
 	dbBindText(stmts[InsertJoin], ":channel", channel);
-	dbStep(stmts[InsertJoin]);
-	printSQL(stmts[InsertJoin]);
-	sqlite3_reset(stmts[InsertJoin]);
+	dbRun(stmts[InsertJoin]);
 }
 
 static void deleteJoin(const char *nick, const char *channel) {
 	dbBindText(stmts[DeleteJoin], ":nick", nick);
 	dbBindText(stmts[DeleteJoin], ":channel", channel);
-	dbStep(stmts[DeleteJoin]);
-	printSQL(stmts[DeleteJoin]);
-	sqlite3_reset(stmts[DeleteJoin]);
+	dbRun(stmts[DeleteJoin]);
 }
 
 static void updateJoin(const char *old, const char *new) {
 	dbBindText(stmts[UpdateJoin], ":old", old);
 	dbBindText(stmts[UpdateJoin], ":new", new);
-	dbStep(stmts[UpdateJoin]);
-	printSQL(stmts[UpdateJoin]);
-	sqlite3_reset(stmts[UpdateJoin]);
+	dbRun(stmts[UpdateJoin]);
 }
 
 static struct tls *client;

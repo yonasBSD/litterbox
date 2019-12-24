@@ -272,10 +272,8 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 			bindMatch(insertEvent, param, line, match[1 + i]);
 		}
 
-		dbStep(insertName);
-		dbStep(insertEvent);
-		sqlite3_reset(insertName);
-		sqlite3_reset(insertEvent);
+		dbRun(insertName);
+		dbRun(insertEvent);
 		break;
 	}
 }
@@ -307,13 +305,14 @@ int main(int argc, char *argv[]) {
 	const struct Format *format = &Formats[0];
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "C:DN:d:f:"))) {
+	while (0 < (opt = getopt(argc, argv, "C:DN:d:f:v"))) {
 		switch (opt) {
 			break; case 'C': context = optarg;
 			break; case 'D': dedup = true;
 			break; case 'N': network = optarg;
 			break; case 'd': path = optarg;
 			break; case 'f': format = formatParse(optarg);
+			break; case 'v': verbose = true;
 			break; default:  return EX_USAGE;
 		}
 	}
@@ -391,8 +390,7 @@ int main(int argc, char *argv[]) {
 			bindMatch(insertContext, ":context", argv[i], pathContext);
 			bindMatch(insertEvent, ":context", argv[i], pathContext);
 		}
-		dbStep(insertContext);
-		sqlite3_reset(insertContext);
+		dbRun(insertContext);
 
 		ssize_t len;
 		while (0 < (len = getline(&line, &cap, file))) {

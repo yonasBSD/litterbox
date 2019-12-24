@@ -1,4 +1,4 @@
-.Dd December 12, 2019
+.Dd December 23, 2019
 .Dt UNSCOOP 1
 .Os
 .
@@ -8,6 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
+.Op Fl v
 .Op Fl C Ar context
 .Op Fl N Ar network
 .Op Fl d Ar path
@@ -80,6 +81,9 @@ and
 .It Cm textual
 Logs from the Textual IRC client.
 .El
+.
+.It Fl v
+Log SQL to standard error.
 .El
 .
 .Sh EXAMPLES
