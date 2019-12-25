@@ -271,7 +271,7 @@ static void handleCap(struct Message *msg) {
 static void handleReplyWelcome(struct Message *msg) {
 	require(msg, false, 1);
 	set(&self, msg->params[0]);
-	format("JOIN :%s\r\n", join);
+	if (join) format("JOIN :%s\r\n", join);
 }
 
 static void handleReplyISupport(struct Message *msg) {
