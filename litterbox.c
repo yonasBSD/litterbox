@@ -226,12 +226,9 @@ static struct Message parse(char *line) {
 		char *origin = 1 + strsep(&line, " ");
 		msg.nick = strsep(&origin, "!");
 		msg.user = strsep(&origin, "@");
-		if (origin) {
-			msg.host = origin;
-		} else {
-			msg.host = msg.nick;
-			msg.nick = NULL;
-		}
+		msg.host = origin;
+		if (!msg.user) msg.user = msg.nick;
+		if (!msg.host) msg.host = msg.user;
 	}
 	msg.cmd = strsep(&line, " ");
 	for (size_t i = 0; line && i < ParamCap; ++i) {
@@ -244,7 +241,8 @@ static struct Message parse(char *line) {
 	return msg;
 }
 
-static void require(const struct Message *msg, size_t len) {
+static void require(const struct Message *msg, bool nick, size_t len) {
+	if (nick && !msg->nick) errx(EX_PROTOCOL, "%s missing origin", msg->cmd);
 	for (size_t i = 0; i < len; ++i) {
 		if (msg->params[i]) continue;
 		errx(EX_PROTOCOL, "%s missing parameter %zu", msg->cmd, 1 + i);
@@ -271,7 +269,7 @@ static void handleCap(struct Message *msg) {
 }
 
 static void handleReplyWelcome(struct Message *msg) {
-	require(msg, 1);
+	require(msg, false, 1);
 	set(&self, msg->params[0]);
 	format("JOIN :%s\r\n", join);
 }
@@ -294,8 +292,7 @@ static void handleReplyISupport(struct Message *msg) {
 }
 
 static void handlePrivmsg(struct Message *msg) {
-	require(msg, 2);
-	if (!msg->nick) return;
+	require(msg, true, 2);
 
 	bool query = true;
 	const char *context = msg->params[0];
@@ -319,7 +316,7 @@ static void handlePrivmsg(struct Message *msg) {
 }
 
 static void handleReplyNames(struct Message *msg) {
-	require(msg, 3);
+	require(msg, false, 3);
 	char *names = msg->params[3];
 	while (names) {
 		char *nick = strsep(&names, " ");
@@ -329,7 +326,7 @@ static void handleReplyNames(struct Message *msg) {
 }
 
 static void handleJoin(struct Message *msg) {
-	require(msg, 1);
+	require(msg, true, 1);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(
@@ -340,7 +337,7 @@ static void handleJoin(struct Message *msg) {
 }
 
 static void handlePart(struct Message *msg) {
-	require(msg, 1);
+	require(msg, true, 1);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(
@@ -355,8 +352,7 @@ static void handlePart(struct Message *msg) {
 }
 
 static void handleKick(struct Message *msg) {
-	require(msg, 2);
-	// FIXME: Sometimes the server kicks people...
+	require(msg, true, 2);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(
@@ -372,7 +368,7 @@ static void handleKick(struct Message *msg) {
 }
 
 static void handleNick(struct Message *msg) {
-	require(msg, 1);
+	require(msg, true, 1);
 	if (!strcmp(msg->nick, self)) set(&self, msg->params[0]);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvents(
@@ -383,6 +379,7 @@ static void handleNick(struct Message *msg) {
 }
 
 static void handleQuit(struct Message *msg) {
+	require(msg, true, 0);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvents(
 		msg->time, Quit,
@@ -392,7 +389,7 @@ static void handleQuit(struct Message *msg) {
 }
 
 static void handleTopic(struct Message *msg) {
-	require(msg, 1);
+	require(msg, true, 1);
 	insertContext(msg->params[0], false);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(
@@ -402,7 +399,7 @@ static void handleTopic(struct Message *msg) {
 }
 
 static void handlePing(struct Message *msg) {
-	require(msg, 1);
+	require(msg, false, 1);
 	format("PONG :%s\r\n", msg->params[0]);
 }
 
@@ -490,6 +487,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (!host) errx(EX_USAGE, "host required");
+	set(&self, "*");
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
 
