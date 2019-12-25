@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -438,6 +439,14 @@ static void handle(struct Message msg) {
 	}
 }
 
+static void quit(int sig) {
+	(void)sig;
+	format("QUIT\r\n");
+	tls_close(client);
+	dbClose();
+	_exit(EX_OK);
+}
+
 int main(int argc, char *argv[]) {
 	char *path = NULL;
 	bool init = false;
@@ -520,13 +529,16 @@ int main(int argc, char *argv[]) {
 	format("CAP REQ :server-time\r\n");
 	format("NICK :%s\r\nUSER %s 0 * :Litterbox\r\n", nick, user);
 
+	signal(SIGINT, quit);
+	signal(SIGTERM, quit);
+
 	char buf[8191 + 512];
 	size_t len = 0;
 	for (;;) {
 		ssize_t ret = tls_read(client, &buf[len], sizeof(buf) - len);
 		if (ret == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT) continue;
 		if (ret < 0) errx(EX_IOERR, "tls_read: %s", tls_error(client));
-		if (!ret) break;
+		if (!ret) errx(EX_PROTOCOL, "server closed connection");
 		len += ret;
 
 		char *line = buf;
@@ -540,6 +552,4 @@ int main(int argc, char *argv[]) {
 		len -= line - buf;
 		memmove(buf, line, len);
 	}
-
-	dbClose();
 }
