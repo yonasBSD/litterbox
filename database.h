@@ -226,9 +226,10 @@ static const char *InitSQL = SQL(
 	);
 
 	CREATE TABLE topics (
-		context INTEGER NOT NULL REFERENCES contexts,
 		time DATETIME NOT NULL,
-		topic TEXT
+		context INTEGER NOT NULL REFERENCES contexts,
+		topic TEXT NOT NULL,
+		UNIQUE (context, topic)
 	);
 
 	CREATE TABLE names (

@@ -49,8 +49,8 @@ static void prepare(void) {
 	dbPersist(&insert.context, InsertContext);
 
 	const char *InsertTopic = SQL(
-		INSERT INTO topics (context, time, topic)
-		SELECT context, coalesce(datetime(:time), datetime('now')), :topic
+		INSERT OR IGNORE INTO topics (time, context, topic)
+		SELECT coalesce(datetime(:time), datetime('now')), context, :topic
 		FROM contexts WHERE network = :network AND name = :context;
 	);
 	dbPersist(&insert.topic, InsertTopic);
@@ -115,10 +115,10 @@ static void insertContext(const char *context, bool query) {
 }
 
 static void insertTopic(
-	const char *context, const char *time, const char *topic
+	const char *time, const char *context, const char *topic
 ) {
-	dbBindText(insert.topic, ":context", context);
 	dbBindText(insert.topic, ":time", time);
+	dbBindText(insert.topic, ":context", context);
 	dbBindText(insert.topic, ":topic", topic);
 	dbRun(insert.topic);
 }
@@ -385,8 +385,8 @@ static void handlePrivmsg(struct Message *msg) {
 
 static void handleReplyTopic(struct Message *msg) {
 	require(msg, false, 2);
-	if (!strcmp(msg->cmd, "331")) msg->params[2] = NULL;
-	insertTopic(msg->params[1], msg->time, msg->params[2]);
+	if (!strcmp(msg->cmd, "331")) msg->params[2] = "";
+	insertTopic(msg->time, msg->params[1], msg->params[2]);
 }
 
 static void handleReplyNames(struct Message *msg) {
@@ -465,6 +465,7 @@ static void handleQuit(struct Message *msg) {
 static void handleTopic(struct Message *msg) {
 	require(msg, true, 1);
 	insertContext(msg->params[0], false);
+	insertTopic(msg->params[0], msg->params[1]);
 	insertName(msg->nick, msg->user, msg->host);
 	insertEvent(
 		msg->time, Topic, msg->params[0],
