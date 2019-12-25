@@ -218,6 +218,12 @@ static const char *InitSQL = SQL(
 		UNIQUE (network, name)
 	);
 
+	CREATE TABLE topics (
+		context INTEGER NOT NULL REFERENCES contexts,
+		time DATETIME NOT NULL,
+		topic TEXT
+	);
+
 	CREATE TABLE names (
 		name INTEGER PRIMARY KEY,
 		nick TEXT NOT NULL,

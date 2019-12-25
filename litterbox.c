@@ -29,6 +29,7 @@
 
 static struct {
 	sqlite3_stmt *context;
+	sqlite3_stmt *topic;
 	sqlite3_stmt *event;
 	sqlite3_stmt *events;
 } insert;
@@ -48,6 +49,13 @@ static void prepare(void) {
 		VALUES (:network, :context, :query);
 	);
 	dbPersist(&insert.context, InsertContext);
+
+	const char *InsertTopic = SQL(
+		INSERT INTO topics (context, time, topic)
+		SELECT context, coalesce(datetime(:time), datetime('now')), :topic
+		FROM contexts WHERE network = :network AND name = :context;
+	);
+	dbPersist(&insert.topic, InsertTopic);
 
 	const char *InsertEvent = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
@@ -81,6 +89,7 @@ static void prepare(void) {
 
 static void bindNetwork(const char *network) {
 	dbBindTextCopy(insert.context, ":network", network);
+	dbBindTextCopy(insert.topic, ":network", network);
 	dbBindTextCopy(insert.event, ":network", network);
 	dbBindTextCopy(insert.events, ":network", network);
 }
@@ -89,6 +98,15 @@ static void insertContext(const char *context, bool query) {
 	dbBindText(insert.context, ":context", context);
 	dbBindInt(insert.context, ":query", query);
 	dbRun(insert.context);
+}
+
+static void insertTopic(
+	const char *context, const char *time, const char *topic
+) {
+	dbBindText(insert.topic, ":context", context);
+	dbBindText(insert.topic, ":time", time);
+	dbBindText(insert.topic, ":topic", topic);
+	dbRun(insert.topic);
 }
 
 static void insertEvent(
@@ -316,6 +334,12 @@ static void handlePrivmsg(struct Message *msg) {
 	);
 }
 
+static void handleReplyTopic(struct Message *msg) {
+	require(msg, false, 2);
+	if (!strcmp(msg->cmd, "331")) msg->params[2] = NULL;
+	insertTopic(msg->params[1], msg->time, msg->params[2]);
+}
+
 static void handleReplyNames(struct Message *msg) {
 	require(msg, false, 3);
 	char *names = msg->params[3];
@@ -411,6 +435,8 @@ static const struct {
 } Handlers[] = {
 	{ "001", false, handleReplyWelcome },
 	{ "005", false, handleReplyISupport },
+	{ "331", true, handleReplyTopic },
+	{ "332", true, handleReplyTopic },
 	{ "353", true, handleReplyNames },
 	{ "CAP", false, handleCap },
 	{ "JOIN", true, handleJoin },
