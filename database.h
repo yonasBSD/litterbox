@@ -210,6 +210,13 @@ static inline int dbVersion(void) {
 static const char *InitSQL = SQL(
 	BEGIN TRANSACTION;
 
+	CREATE TABLE motds (
+		time DATETIME NOT NULL,
+		network TEXT NOT NULL,
+		motd TEXT NOT NULL,
+		UNIQUE (network, motd)
+	);
+
 	CREATE TABLE contexts (
 		context INTEGER PRIMARY KEY,
 		network TEXT NOT NULL,

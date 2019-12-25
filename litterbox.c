@@ -28,6 +28,7 @@
 #include "database.h"
 
 static struct {
+	sqlite3_stmt *motd;
 	sqlite3_stmt *context;
 	sqlite3_stmt *topic;
 	sqlite3_stmt *event;
@@ -35,14 +36,11 @@ static struct {
 } insert;
 
 static void prepare(void) {
-	const char *CreateJoins = SQL(
-		CREATE TEMPORARY TABLE joins (
-			nick TEXT NOT NULL,
-			channel TEXT NOT NULL,
-			UNIQUE (nick, channel)
-		);
+	const char *InsertMOTD = SQL(
+		INSERT OR IGNORE INTO motds (time, network, motd)
+		VALUES (coalesce(datetime(:time), datetime('now')), :network, :motd);
 	);
-	dbExec(CreateJoins);
+	dbPersist(&insert.motd, InsertMOTD);
 
 	const char *InsertContext = SQL(
 		INSERT OR IGNORE INTO contexts (network, name, query)
@@ -71,6 +69,15 @@ static void prepare(void) {
 	);
 	dbPersist(&insert.event, InsertEvent);
 
+	const char *CreateJoins = SQL(
+		CREATE TEMPORARY TABLE joins (
+			nick TEXT NOT NULL,
+			channel TEXT NOT NULL,
+			UNIQUE (nick, channel)
+		);
+	);
+	dbExec(CreateJoins);
+
 	const char *InsertEvents = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
 		SELECT
@@ -88,10 +95,17 @@ static void prepare(void) {
 }
 
 static void bindNetwork(const char *network) {
+	dbBindTextCopy(insert.motd, ":network", network);
 	dbBindTextCopy(insert.context, ":network", network);
 	dbBindTextCopy(insert.topic, ":network", network);
 	dbBindTextCopy(insert.event, ":network", network);
 	dbBindTextCopy(insert.events, ":network", network);
+}
+
+static void insertMOTD(const char *time, const char *motd) {
+	dbBindText(insert.motd, ":time", time);
+	dbBindText(insert.motd, ":motd", motd);
+	dbRun(insert.motd);
 }
 
 static void insertContext(const char *context, bool query) {
@@ -310,6 +324,41 @@ static void handleReplyISupport(struct Message *msg) {
 	}
 }
 
+static struct {
+	char *buf;
+	size_t cap, len;
+} motd;
+
+static void handleReplyMOTDStart(struct Message *msg) {
+	(void)msg;
+	motd.len = 0;
+	motd.cap = 80;
+	motd.buf = malloc(motd.cap);
+	if (!motd.buf) err(EX_OSERR, "malloc");
+}
+
+static void handleReplyMOTD(struct Message *msg) {
+	require(msg, false, 2);
+	char *line = msg->params[1];
+	if (!strncmp(line, "- ", 2)) line += 2;
+	size_t len = strlen(line);
+	if (motd.len + len + 1 > motd.cap) {
+		motd.cap *= 2;
+		motd.buf = realloc(motd.buf, motd.cap);
+		if (!motd.buf) err(EX_OSERR, "realloc");
+	}
+	memcpy(&motd.buf[motd.len], line, len);
+	motd.len += len;
+	motd.buf[motd.len++] = '\n';
+}
+
+static void handleReplyEndOfMOTD(struct Message *msg) {
+	motd.buf[motd.len - 1] = '\0';
+	insertMOTD(msg->time, motd.buf);
+	free(motd.buf);
+	memset(&motd, 0, sizeof(motd));
+}
+
 static void handlePrivmsg(struct Message *msg) {
 	require(msg, true, 2);
 
@@ -438,6 +487,9 @@ static const struct {
 	{ "331", true, handleReplyTopic },
 	{ "332", true, handleReplyTopic },
 	{ "353", true, handleReplyNames },
+	{ "372", false, handleReplyMOTD },
+	{ "375", false, handleReplyMOTDStart },
+	{ "376", true, handleReplyEndOfMOTD },
 	{ "CAP", false, handleCap },
 	{ "JOIN", true, handleJoin },
 	{ "KICK", true, handleKick },
