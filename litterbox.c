@@ -443,7 +443,7 @@ static void handleError(struct Message *msg) {
 	errx(EX_UNAVAILABLE, "%s", msg->params[0]);
 }
 
-static const struct {
+static const struct Handler {
 	const char *cmd;
 	bool transaction;
 	Handler *fn;
@@ -469,18 +469,23 @@ static const struct {
 	{ "TOPIC", true, handleTopic },
 };
 
+static int compar(const void *cmd, const void *_handler) {
+	const struct Handler *handler = _handler;
+	return strcmp(cmd, handler->cmd);
+}
+
 static void handle(struct Message msg) {
 	if (!msg.cmd) return;
-	for (size_t i = 0; i < ARRAY_LEN(Handlers); ++i) {
-		if (strcmp(msg.cmd, Handlers[i].cmd)) continue;
-		if (Handlers[i].transaction) {
-			dbExec(SQL(BEGIN TRANSACTION;));
-			Handlers[i].fn(&msg);
-			dbExec(SQL(COMMIT TRANSACTION;));
-		} else {
-			Handlers[i].fn(&msg);
-		}
-		break;
+	const struct Handler *handler = bsearch(
+		msg.cmd, Handlers, ARRAY_LEN(Handlers), sizeof(*handler), compar
+	);
+	if (!handler) return;
+	if (handler->transaction) {
+		dbExec(SQL(BEGIN TRANSACTION;));
+		handler->fn(&msg);
+		dbExec(SQL(COMMIT TRANSACTION;));
+	} else {
+		handler->fn(&msg);
 	}
 }
 
