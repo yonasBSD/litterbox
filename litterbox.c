@@ -281,6 +281,7 @@ static void insertTopic(
 static void handleReplyTopic(struct Message *msg) {
 	require(msg, false, 2);
 	if (!strcmp(msg->cmd, "331")) msg->params[2] = "";
+	insertContext(msg->params[1], false);
 	insertTopic(msg->time, msg->params[1], msg->params[2]);
 }
 
