@@ -27,190 +27,6 @@
 
 #include "database.h"
 
-static struct {
-	sqlite3_stmt *motd;
-	sqlite3_stmt *context;
-	sqlite3_stmt *topic;
-	sqlite3_stmt *event;
-	sqlite3_stmt *events;
-} insert;
-
-static void prepare(void) {
-	const char *InsertMOTD = SQL(
-		INSERT OR IGNORE INTO motds (time, network, motd)
-		VALUES (coalesce(datetime(:time), datetime('now')), :network, :motd);
-	);
-	dbPersist(&insert.motd, InsertMOTD);
-
-	const char *InsertContext = SQL(
-		INSERT OR IGNORE INTO contexts (network, name, query)
-		VALUES (:network, :context, :query);
-	);
-	dbPersist(&insert.context, InsertContext);
-
-	const char *InsertTopic = SQL(
-		INSERT OR IGNORE INTO topics (time, context, topic)
-		SELECT coalesce(datetime(:time), datetime('now')), context, :topic
-		FROM contexts WHERE network = :network AND name = :context;
-	);
-	dbPersist(&insert.topic, InsertTopic);
-
-	const char *InsertEvent = SQL(
-		INSERT INTO events (time, type, context, name, target, message)
-		SELECT
-			coalesce(datetime(:time), datetime('now')),
-			:type, context, names.name, :target, :message
-		FROM contexts, names
-		WHERE contexts.network = :network
-			AND contexts.name = :context
-			AND names.nick = :nick
-			AND names.user = :user
-			AND names.host = :host;
-	);
-	dbPersist(&insert.event, InsertEvent);
-
-	const char *CreateJoins = SQL(
-		CREATE TEMPORARY TABLE joins (
-			nick TEXT NOT NULL,
-			channel TEXT NOT NULL,
-			UNIQUE (nick, channel)
-		);
-	);
-	dbExec(CreateJoins);
-
-	const char *InsertEvents = SQL(
-		INSERT INTO events (time, type, context, name, target, message)
-		SELECT
-			coalesce(datetime(:time), datetime('now')),
-			:type, context, names.name, :target, :message
-		FROM joins, contexts, names
-		WHERE joins.nick = :nick
-			AND contexts.name = joins.channel
-			AND contexts.network = :network
-			AND names.nick = :nick
-			AND names.user = :user
-			AND names.host = :host;
-	);
-	dbPersist(&insert.events, InsertEvents);
-}
-
-static void bindNetwork(const char *network) {
-	dbBindTextCopy(insert.motd, ":network", network);
-	dbBindTextCopy(insert.context, ":network", network);
-	dbBindTextCopy(insert.topic, ":network", network);
-	dbBindTextCopy(insert.event, ":network", network);
-	dbBindTextCopy(insert.events, ":network", network);
-}
-
-static void insertMOTD(const char *time, const char *motd) {
-	dbBindText(insert.motd, ":time", time);
-	dbBindText(insert.motd, ":motd", motd);
-	dbRun(insert.motd);
-}
-
-static void insertContext(const char *context, bool query) {
-	dbBindText(insert.context, ":context", context);
-	dbBindInt(insert.context, ":query", query);
-	dbRun(insert.context);
-}
-
-static void insertTopic(
-	const char *time, const char *context, const char *topic
-) {
-	dbBindText(insert.topic, ":time", time);
-	dbBindText(insert.topic, ":context", context);
-	dbBindText(insert.topic, ":topic", topic);
-	dbRun(insert.topic);
-}
-
-static void insertEvent(
-	const char *time, enum Type type, const char *context,
-	const char *nick, const char *user, const char *host,
-	const char *target, const char *message
-) {
-	dbBindText(insert.event, ":time", time);
-	dbBindInt(insert.event, ":type", type);
-	dbBindText(insert.event, ":context", context);
-	dbBindText(insert.event, ":nick", nick);
-	dbBindText(insert.event, ":user", user);
-	dbBindText(insert.event, ":host", host);
-	dbBindText(insert.event, ":target", target);
-	dbBindText(insert.event, ":message", message);
-	dbRun(insert.event);
-}
-
-static void insertEvents(
-	const char *time, enum Type type,
-	const char *nick, const char *user, const char *host,
-	const char *target, const char *message
-) {
-	dbBindText(insert.events, ":time", time);
-	dbBindInt(insert.events, ":type", type);
-	dbBindText(insert.events, ":nick", nick);
-	dbBindText(insert.events, ":user", user);
-	dbBindText(insert.events, ":host", host);
-	dbBindText(insert.events, ":target", target);
-	dbBindText(insert.events, ":message", message);
-	dbRun(insert.events);
-}
-
-static void insertName(const char *nick, const char *user, const char *host) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		INSERT OR IGNORE INTO names (nick, user, host)
-		VALUES (:nick, :user, :host);
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":nick", nick);
-	dbBindText(stmt, ":user", user);
-	dbBindText(stmt, ":host", host);
-	dbRun(stmt);
-}
-
-static void insertJoin(const char *nick, const char *channel) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		INSERT OR IGNORE INTO joins (nick, channel) VALUES (:nick, :channel);
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":nick", nick);
-	dbBindText(stmt, ":channel", channel);
-	dbRun(stmt);
-}
-
-static void deleteJoin(const char *nick, const char *channel) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		DELETE FROM joins WHERE nick = :nick AND channel = :channel;
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":nick", nick);
-	dbBindText(stmt, ":channel", channel);
-	dbRun(stmt);
-}
-
-static void updateJoin(const char *old, const char *new) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		UPDATE joins SET nick = :new WHERE nick = :old;
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":old", old);
-	dbBindText(stmt, ":new", new);
-	dbRun(stmt);
-}
-
-static void clearJoins(const char *nick, const char *channel) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		DELETE FROM joins WHERE nick = :nick OR channel = :channel;
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":nick", nick);
-	dbBindText(stmt, ":channel", channel);
-	dbRun(stmt);
-}
-
 static struct tls *client;
 
 static void clientWrite(const char *ptr, size_t len) {
@@ -285,6 +101,7 @@ static void require(const struct Message *msg, bool nick, size_t len) {
 static const char *join;
 
 static char *self;
+static char *network;
 static char *chanTypes;
 static char *prefixes;
 
@@ -313,7 +130,7 @@ static void handleReplyISupport(struct Message *msg) {
 		char *key = strsep(&msg->params[i], "=");
 		if (!msg->params[i]) continue;
 		if (!strcmp(key, "NETWORK")) {
-			bindNetwork(msg->params[i]);
+			set(&network, msg->params[i]);
 		} else if (!strcmp(key, "CHANTYPES")) {
 			set(&chanTypes, msg->params[i]);
 		} else if (!strcmp(key, "PREFIX")) {
@@ -353,10 +170,74 @@ static void handleReplyMOTD(struct Message *msg) {
 }
 
 static void handleReplyEndOfMOTD(struct Message *msg) {
-	motd.buf[motd.len - 1] = '\0';
-	insertMOTD(msg->time, motd.buf);
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO motds (time, network, motd)
+		VALUES (coalesce(datetime(:time), datetime('now')), :network, :motd);
+	);
+	sqlite3_stmt *stmt = dbPrepare(sql);
+	dbBindText(stmt, ":time", msg->time);
+	dbBindText(stmt, ":network", network);
+	dbBindTextLen(stmt, ":motd", motd.buf, motd.len);
+	dbRun(stmt);
+	sqlite3_finalize(stmt);
 	free(motd.buf);
 	memset(&motd, 0, sizeof(motd));
+}
+
+static void insertContext(const char *context, bool query) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO contexts (network, name, query)
+		VALUES (:network, :context, :query);
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":network", network);
+	dbBindText(stmt, ":context", context);
+	dbBindInt(stmt, ":query", query);
+	dbRun(stmt);
+}
+
+static void insertName(const struct Message *msg) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO names (nick, user, host)
+		VALUES (:nick, :user, :host);
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":nick", msg->nick);
+	dbBindText(stmt, ":user", msg->user);
+	dbBindText(stmt, ":host", msg->host);
+	dbRun(stmt);
+}
+
+static void insertEvent(
+	const struct Message *msg, enum Type type, const char *context,
+	const char *target, const char *message
+) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			coalesce(datetime(:time), datetime('now')),
+			:type, context, names.name, :target, :message
+		FROM contexts, names
+		WHERE contexts.network = :network
+			AND contexts.name = :context
+			AND names.nick = :nick
+			AND names.user = :user
+			AND names.host = :host;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":time", msg->time);
+	dbBindInt(stmt, ":type", type);
+	dbBindText(stmt, ":network", network);
+	dbBindText(stmt, ":context", context);
+	dbBindText(stmt, ":nick", msg->nick);
+	dbBindText(stmt, ":user", msg->user);
+	dbBindText(stmt, ":host", msg->host);
+	dbBindText(stmt, ":target", target);
+	dbBindText(stmt, ":message", message);
+	dbRun(stmt);
 }
 
 static void handlePrivmsg(struct Message *msg) {
@@ -376,17 +257,75 @@ static void handlePrivmsg(struct Message *msg) {
 	}
 
 	insertContext(context, query);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvent(
-		msg->time, type, context,
-		msg->nick, msg->user, msg->host, NULL, message
+	insertName(msg);
+	insertEvent(msg, type, context, NULL, message);
+}
+
+static void insertTopic(
+	const char *time, const char *context, const char *topic
+) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO topics (time, context, topic)
+		SELECT coalesce(datetime(:time), datetime('now')), context, :topic
+		FROM contexts WHERE network = :network AND name = :context;
 	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":time", time);
+	dbBindText(stmt, ":network", network);
+	dbBindText(stmt, ":context", context);
+	dbBindText(stmt, ":topic", topic);
+	dbRun(stmt);
 }
 
 static void handleReplyTopic(struct Message *msg) {
 	require(msg, false, 2);
 	if (!strcmp(msg->cmd, "331")) msg->params[2] = "";
 	insertTopic(msg->time, msg->params[1], msg->params[2]);
+}
+
+static void createJoins(void) {
+	const char *sql = SQL(
+		CREATE TEMPORARY TABLE joins (
+			nick TEXT NOT NULL,
+			channel TEXT NOT NULL,
+			UNIQUE (nick, channel)
+		);
+	);
+	dbExec(sql);
+}
+
+static void insertJoin(const char *nick, const char *channel) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO joins (nick, channel) VALUES (:nick, :channel);
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":nick", nick);
+	dbBindText(stmt, ":channel", channel);
+	dbRun(stmt);
+}
+
+static void deleteJoin(const char *nick, const char *channel) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		DELETE FROM joins WHERE nick = :nick AND channel = :channel;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":nick", nick);
+	dbBindText(stmt, ":channel", channel);
+	dbRun(stmt);
+}
+
+static void clearJoins(const char *nick, const char *channel) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		DELETE FROM joins WHERE nick = :nick OR channel = :channel;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":nick", nick);
+	dbBindText(stmt, ":channel", channel);
+	dbRun(stmt);
 }
 
 static void handleReplyNames(struct Message *msg) {
@@ -402,22 +341,16 @@ static void handleReplyNames(struct Message *msg) {
 static void handleJoin(struct Message *msg) {
 	require(msg, true, 1);
 	insertContext(msg->params[0], false);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvent(
-		msg->time, Join, msg->params[0],
-		msg->nick, msg->user, msg->host, NULL, NULL
-	);
+	insertName(msg);
+	insertEvent(msg, Join, msg->params[0], NULL, NULL);
 	insertJoin(msg->nick, msg->params[0]);
 }
 
 static void handlePart(struct Message *msg) {
 	require(msg, true, 1);
 	insertContext(msg->params[0], false);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvent(
-		msg->time, Part, msg->params[0],
-		msg->nick, msg->user, msg->host, NULL, msg->params[1]
-	);
+	insertName(msg);
+	insertEvent(msg, Part, msg->params[0], NULL, msg->params[1]);
 	if (!strcmp(msg->nick, self)) {
 		clearJoins(NULL, msg->params[0]);
 	} else {
@@ -428,12 +361,8 @@ static void handlePart(struct Message *msg) {
 static void handleKick(struct Message *msg) {
 	require(msg, true, 2);
 	insertContext(msg->params[0], false);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvent(
-		msg->time, Kick, msg->params[0],
-		msg->nick, msg->user, msg->host,
-		msg->params[1], msg->params[2]
-	);
+	insertName(msg);
+	insertEvent(msg, Kick, msg->params[0], msg->params[1], msg->params[2]);
 	if (!strcmp(msg->params[1], self)) {
 		clearJoins(NULL, msg->params[0]);
 	} else {
@@ -441,36 +370,64 @@ static void handleKick(struct Message *msg) {
 	}
 }
 
+static void insertEvents(
+	const struct Message *msg, enum Type type,
+	const char *target, const char *message
+) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			coalesce(datetime(:time), datetime('now')),
+			:type, context, names.name, :target, :message
+		FROM joins, contexts, names
+		WHERE joins.nick = :nick
+			AND contexts.name = joins.channel
+			AND contexts.network = :network
+			AND names.nick = :nick
+			AND names.user = :user
+			AND names.host = :host;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":time", msg->time);
+	dbBindInt(stmt, ":type", type);
+	dbBindText(stmt, ":network", network);
+	dbBindText(stmt, ":nick", msg->nick);
+	dbBindText(stmt, ":user", msg->user);
+	dbBindText(stmt, ":host", msg->host);
+	dbBindText(stmt, ":target", target);
+	dbBindText(stmt, ":message", message);
+	dbRun(stmt);
+}
+
 static void handleNick(struct Message *msg) {
 	require(msg, true, 1);
 	if (!strcmp(msg->nick, self)) set(&self, msg->params[0]);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvents(
-		msg->time, Nick,
-		msg->nick, msg->user, msg->host, msg->params[0], NULL
+	insertName(msg);
+	insertEvents(msg, Nick, msg->params[0], NULL);
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		UPDATE joins SET nick = :new WHERE nick = :old;
 	);
-	updateJoin(msg->nick, msg->params[0]);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":old", msg->nick);
+	dbBindText(stmt, ":new", msg->params[0]);
+	dbRun(stmt);
 }
 
 static void handleQuit(struct Message *msg) {
 	require(msg, true, 0);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvents(
-		msg->time, Quit,
-		msg->nick, msg->user, msg->host, NULL, msg->params[0]
-	);
+	insertName(msg);
+	insertEvents(msg, Quit, NULL, msg->params[0]);
 	clearJoins(msg->nick, NULL);
 }
 
 static void handleTopic(struct Message *msg) {
 	require(msg, true, 1);
 	insertContext(msg->params[0], false);
-	insertTopic(msg->params[0], msg->params[1]);
-	insertName(msg->nick, msg->user, msg->host);
-	insertEvent(
-		msg->time, Topic, msg->params[0],
-		msg->nick, msg->user, msg->host, NULL, msg->params[1]
-	);
+	insertTopic(msg->time, msg->params[0], msg->params[1]);
+	insertName(msg);
+	insertEvent(msg, Topic, msg->params[0], NULL, msg->params[1]);
 }
 
 static void handlePing(struct Message *msg) {
@@ -573,14 +530,12 @@ int main(int argc, char *argv[]) {
 	if (dbVersion() != DatabaseVersion) {
 		errx(EX_CONFIG, "database out of date; migrate with -m");
 	}
+	createJoins();
 
 	if (!host) errx(EX_USAGE, "host required");
 	set(&self, "*");
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
-
-	prepare();
-	bindNetwork(host);
 
 	client = tls_client();
 	if (!client) errx(EX_SOFTWARE, "tls_client");
