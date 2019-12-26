@@ -436,6 +436,13 @@ static void handlePing(struct Message *msg) {
 	format("PONG :%s\r\n", msg->params[0]);
 }
 
+static void handleError(struct Message *msg) {
+	require(msg, false, 1);
+	tls_close(client);
+	dbClose();
+	errx(EX_UNAVAILABLE, "%s", msg->params[0]);
+}
+
 static const struct {
 	const char *cmd;
 	bool transaction;
@@ -450,6 +457,7 @@ static const struct {
 	{ "375", false, handleReplyMOTDStart },
 	{ "376", true, handleReplyEndOfMOTD },
 	{ "CAP", false, handleCap },
+	{ "ERROR", false, handleError },
 	{ "JOIN", true, handleJoin },
 	{ "KICK", true, handleKick },
 	{ "NICK", true, handleNick },
