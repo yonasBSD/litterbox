@@ -1,4 +1,4 @@
-.Dd December 17, 2019
+.Dd December 27, 2019
 .Dt LITTERBOX 1
 .Os
 .
@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl v
+.Op Fl Qqv
 .Op Fl d Ar path
 .Op Fl h Ar host
 .Op Fl j Ar join
@@ -32,6 +32,24 @@ which may be queried with
 The arguments are as follows:
 .
 .Bl -tag -width "-h host"
+.It Fl Q
+Enable public search query interface.
+This allows anyone to perform searches
+in private messages to
+.Nm .
+Search results are limited
+to channels on the current network.
+.
+.Pp
+The searchable columns are
+.Li channel ,
+.Li nick ,
+.Li user ,
+.Li target ,
+.Li message .
+For search query syntax, see
+.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
+.
 .It Fl d Ar path
 Set the path to the database file.
 The database must be initialized with
@@ -64,6 +82,26 @@ The default nickname is
 Connect to
 .Ar port .
 The default port is 6697.
+.
+.It Fl q
+Enable private search query interface.
+This allows search queries in private messages to
+.Nm
+from itself,
+which is likely only useful when connected to
+.Xr pounce 1 .
+Search results are limited to the current network.
+.
+.Pp
+The searchable columns are
+.Li channel ,
+.Li query ,
+.Li nick ,
+.Li user ,
+.Li target ,
+.Li message .
+For search query syntax, see
+.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
 .
 .It Fl u Ar user
 Set the username to

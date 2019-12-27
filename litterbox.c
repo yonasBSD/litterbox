@@ -99,6 +99,11 @@ static void require(const struct Message *msg, bool nick, size_t len) {
 }
 
 static const char *join;
+static enum {
+	None,
+	Private,
+	Public,
+} searchQuery;
 
 static char *self;
 static char *network;
@@ -240,6 +245,75 @@ static void insertEvent(
 	dbRun(stmt);
 }
 
+static void querySearch(struct Message *msg) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		WITH results AS (
+			SELECT
+				contexts.name AS context,
+				date(events.time) || 'T' || time(events.time) || 'Z' AS time,
+				events.type,
+				names.nick, // TODO: names.user for coloring?
+				events.target,
+				highlight(search, 6, :bold, :bold)
+			FROM events
+			JOIN contexts ON contexts.context = events.context
+			JOIN names ON names.name = events.name
+			JOIN search ON search.rowid = events.event
+			WHERE contexts.network = :network
+				AND coalesce(contexts.query = :query, true)
+				AND search MATCH :search
+			ORDER BY events.time DESC, events.event DESC
+			LIMIT 10
+		)
+		SELECT * FROM results ORDER BY context, time;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":bold", "\2");
+
+	dbBindText(stmt, ":network", network);
+	if (searchQuery == Public) {
+		dbBindInt(stmt, ":query", false);
+	} else {
+		dbBindNull(stmt, ":query");
+	}
+	dbBindText(stmt, ":search", msg->params[1]);
+
+	int result;
+	while (SQLITE_ROW == (result = sqlite3_step(stmt))) {
+		const char *context = (const char *)sqlite3_column_text(stmt, 0);
+		const char *time = (const char *)sqlite3_column_text(stmt, 1);
+		enum Type type = sqlite3_column_int(stmt, 2);
+		const char *nick = (const char *)sqlite3_column_text(stmt, 3);
+		const char *target = (const char *)sqlite3_column_text(stmt, 4);
+		const char *message = (const char *)sqlite3_column_text(stmt, 5);
+		if (!target) target = "";
+		if (!message) message = "";
+
+		format("PRIVMSG %s :(%s) [%s] ", msg->nick, context, time);
+		switch (type) {
+			break; case Privmsg: format("<%s> %s\r\n", nick, message);
+			break; case Notice:  format("-%s- %s\r\n", nick, message);
+			break; case Action:  format("* %s %s\r\n", nick, message);
+			break; case Join:    format("%s joined\r\n", nick);
+			break; case Part:    format("%s parted: %s\r\n", nick, message);
+			break; case Quit:    format("%s quit: %s\r\n", nick, message);
+			break; case Kick: {
+				format("%s kicked %s: %s\r\n", nick, target, message);
+			}
+			break; case Nick: {
+				format("%s changed nick to %s\r\n", nick, target);
+			}
+			break; case Topic: {
+				format("%s set the topic: %s\r\n", nick, message);
+			}
+		}
+	}
+	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
+
+	sqlite3_reset(stmt);
+}
+
 static void handlePrivmsg(struct Message *msg) {
 	require(msg, true, 2);
 
@@ -254,6 +328,13 @@ static void handlePrivmsg(struct Message *msg) {
 		message += 8;
 		message[strcspn(message, "\1")] = '\0';
 		type = Action;
+	}
+
+	if (query && searchQuery && type == Privmsg) {
+		if (searchQuery == Public || !strcmp(msg->nick, msg->params[0])) {
+			querySearch(msg);
+			return;
+		}
 	}
 
 	insertContext(context, query);
@@ -511,9 +592,10 @@ int main(int argc, char *argv[]) {
 	const char *pass = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "!d:h:ij:mn:p:u:vw:"))) {
+	while (0 < (opt = getopt(argc, argv, "!Qd:h:ij:mn:p:qu:vw:"))) {
 		switch (opt) {
 			break; case '!': insecure = true;
+			break; case 'Q': searchQuery = Public;
 			break; case 'd': path = optarg;
 			break; case 'h': host = optarg;
 			break; case 'i': init = true;
@@ -521,6 +603,7 @@ int main(int argc, char *argv[]) {
 			break; case 'm': migrate = true;
 			break; case 'n': nick = optarg;
 			break; case 'p': port = optarg;
+			break; case 'q': searchQuery = Private;
 			break; case 'u': user = optarg;
 			break; case 'v': verbose = true;
 			break; case 'w': pass = optarg;
