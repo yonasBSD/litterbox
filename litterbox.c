@@ -290,7 +290,7 @@ static void querySearch(struct Message *msg) {
 		if (!target) target = "";
 		if (!message) message = "";
 
-		format("PRIVMSG %s :(%s) [%s] ", msg->nick, context, time);
+		format("NOTICE %s :(%s) [%s] ", msg->nick, context, time);
 		switch (type) {
 			break; case Privmsg: format("<%s> %s\r\n", nick, message);
 			break; case Notice:  format("-%s- %s\r\n", nick, message);
