@@ -18,6 +18,7 @@
 #include <err.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -245,6 +246,17 @@ static void insertEvent(
 	dbRun(stmt);
 }
 
+static int color(const char *user) {
+	if (*user == '~') user++;
+	uint32_t hash = 0;
+	for (; *user; ++user) {
+		hash = (hash << 5) | (hash >> 27);
+		hash ^= *user;
+		hash *= 0x27220A95;
+	}
+	return 2 + hash % 14;
+}
+
 static void querySearch(struct Message *msg) {
 	static sqlite3_stmt *stmt;
 	const char *sql = SQL(
@@ -253,7 +265,11 @@ static void querySearch(struct Message *msg) {
 				contexts.name AS context,
 				date(events.time) || 'T' || time(events.time) || 'Z' AS time,
 				events.type,
-				names.nick, // TODO: names.user for coloring?
+				names.nick,
+				CASE WHEN names.user = '*'
+					THEN names.nick
+					ELSE names.user
+				END,
 				events.target,
 				highlight(search, 6, :bold, :bold)
 			FROM events
@@ -281,32 +297,46 @@ static void querySearch(struct Message *msg) {
 
 	int result;
 	while (SQLITE_ROW == (result = sqlite3_step(stmt))) {
-		const char *context = (const char *)sqlite3_column_text(stmt, 0);
-		const char *time = (const char *)sqlite3_column_text(stmt, 1);
-		enum Type type = sqlite3_column_int(stmt, 2);
-		const char *nick = (const char *)sqlite3_column_text(stmt, 3);
-		const char *target = (const char *)sqlite3_column_text(stmt, 4);
-		const char *message = (const char *)sqlite3_column_text(stmt, 5);
+		int i = 0;
+		const char *context = (const char *)sqlite3_column_text(stmt, i++);
+		const char *time = (const char *)sqlite3_column_text(stmt, i++);
+		enum Type type = sqlite3_column_int(stmt, i++);
+		const char *nick = (const char *)sqlite3_column_text(stmt, i++);
+		const char *user = (const char *)sqlite3_column_text(stmt, i++);
+		const char *target = (const char *)sqlite3_column_text(stmt, i++);
+		const char *message = (const char *)sqlite3_column_text(stmt, i++);
 		if (!target) target = "";
 		if (!message) message = "";
 
 		format("NOTICE %s :(%s) [%s] ", msg->nick, context, time);
 		switch (type) {
-			break; case Privmsg: format("<%s> %s\r\n", nick, message);
-			break; case Notice:  format("-%s- %s\r\n", nick, message);
-			break; case Action:  format("* %s %s\r\n", nick, message);
-			break; case Join:    format("%s joined\r\n", nick);
-			break; case Part:    format("%s parted: %s\r\n", nick, message);
-			break; case Quit:    format("%s quit: %s\r\n", nick, message);
-			break; case Kick: {
-				format("%s kicked %s: %s\r\n", nick, target, message);
-			}
-			break; case Nick: {
-				format("%s changed nick to %s\r\n", nick, target);
-			}
-			break; case Topic: {
-				format("%s set the topic: %s\r\n", nick, message);
-			}
+			break; case Privmsg:
+				format("<\3%02d%s\3> %s\r\n", color(user), nick, message);
+			break; case Notice:
+				format("-\3%02d%s\3- %s\r\n", color(user), nick, message);
+			break; case Action:
+				format("* \3%02d%s\3 %s\r\n", color(user), nick, message);
+			break; case Join:
+				format("\3%02d%s\3 joined\r\n", color(user), nick);
+			break; case Part:
+				format("\3%02d%s\3 parted: %s\r\n", color(user), nick, message);
+			break; case Quit:
+				format("\3%02d%s\3 quit: %s\r\n", color(user), nick, message);
+			break; case Kick:
+				format(
+					"\3%02d%s\3 kicked %s: %s\r\n",
+					color(user), nick, target, message
+				);
+			break; case Nick:
+				format(
+					"\3%02d%s\3 changed nick to \3%02d%s\3\r\n",
+					color(user), nick, color(user), target
+				);
+			break; case Topic:
+				format(
+					"\3%02d%s\3 set the topic: %s\r\n",
+					color(user), nick, message
+				);
 		}
 	}
 	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
