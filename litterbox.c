@@ -190,62 +190,6 @@ static void handleReplyEndOfMOTD(struct Message *msg) {
 	memset(&motd, 0, sizeof(motd));
 }
 
-static void insertContext(const char *context, bool query) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		INSERT OR IGNORE INTO contexts (network, name, query)
-		VALUES (:network, :context, :query);
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":network", network);
-	dbBindText(stmt, ":context", context);
-	dbBindInt(stmt, ":query", query);
-	dbRun(stmt);
-}
-
-static void insertName(const struct Message *msg) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		INSERT OR IGNORE INTO names (nick, user, host)
-		VALUES (:nick, :user, :host);
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":nick", msg->nick);
-	dbBindText(stmt, ":user", msg->user);
-	dbBindText(stmt, ":host", msg->host);
-	dbRun(stmt);
-}
-
-static void insertEvent(
-	const struct Message *msg, enum Type type, const char *context,
-	const char *target, const char *message
-) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		INSERT INTO events (time, type, context, name, target, message)
-		SELECT
-			coalesce(datetime(:time), datetime('now')),
-			:type, context, names.name, :target, :message
-		FROM contexts, names
-		WHERE contexts.network = :network
-			AND contexts.name = :context
-			AND names.nick = :nick
-			AND names.user = :user
-			AND names.host = :host;
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":time", msg->time);
-	dbBindInt(stmt, ":type", type);
-	dbBindText(stmt, ":network", network);
-	dbBindText(stmt, ":context", context);
-	dbBindText(stmt, ":nick", msg->nick);
-	dbBindText(stmt, ":user", msg->user);
-	dbBindText(stmt, ":host", msg->host);
-	dbBindText(stmt, ":target", target);
-	dbBindText(stmt, ":message", message);
-	dbRun(stmt);
-}
-
 static int color(const char *user) {
 	if (*user == '~') user++;
 	uint32_t hash = 0;
@@ -342,6 +286,62 @@ static void querySearch(struct Message *msg) {
 	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
 
 	sqlite3_reset(stmt);
+}
+
+static void insertContext(const char *context, bool query) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO contexts (network, name, query)
+		VALUES (:network, :context, :query);
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":network", network);
+	dbBindText(stmt, ":context", context);
+	dbBindInt(stmt, ":query", query);
+	dbRun(stmt);
+}
+
+static void insertName(const struct Message *msg) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT OR IGNORE INTO names (nick, user, host)
+		VALUES (:nick, :user, :host);
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":nick", msg->nick);
+	dbBindText(stmt, ":user", msg->user);
+	dbBindText(stmt, ":host", msg->host);
+	dbRun(stmt);
+}
+
+static void insertEvent(
+	const struct Message *msg, enum Type type, const char *context,
+	const char *target, const char *message
+) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT INTO events (time, type, context, name, target, message)
+		SELECT
+			coalesce(datetime(:time), datetime('now')),
+			:type, context, names.name, :target, :message
+		FROM contexts, names
+		WHERE contexts.network = :network
+			AND contexts.name = :context
+			AND names.nick = :nick
+			AND names.user = :user
+			AND names.host = :host;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":time", msg->time);
+	dbBindInt(stmt, ":type", type);
+	dbBindText(stmt, ":network", network);
+	dbBindText(stmt, ":context", context);
+	dbBindText(stmt, ":nick", msg->nick);
+	dbBindText(stmt, ":user", msg->user);
+	dbBindText(stmt, ":host", msg->host);
+	dbBindText(stmt, ":target", target);
+	dbBindText(stmt, ":message", message);
+	dbRun(stmt);
 }
 
 static void handlePrivmsg(struct Message *msg) {
