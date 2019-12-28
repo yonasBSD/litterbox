@@ -360,12 +360,14 @@ static void handlePrivmsg(struct Message *msg) {
 		type = Action;
 	}
 
+	bool selfMessage = !strcmp(msg->nick, msg->params[0]);
 	if (query && searchQuery && type == Privmsg) {
-		if (searchQuery == Public || !strcmp(msg->nick, msg->params[0])) {
+		if (searchQuery == Public || selfMessage) {
 			querySearch(msg);
 			return;
 		}
 	}
+	if (selfMessage) return;
 
 	insertContext(context, query);
 	insertName(msg);
