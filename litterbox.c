@@ -283,7 +283,14 @@ static void querySearch(struct Message *msg) {
 				);
 		}
 	}
-	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
+	if (result != SQLITE_DONE) {
+		const char *errmsg = sqlite3_errmsg(db);
+		if (!strncmp(errmsg, "fts5:", 5)) {
+			format("NOTICE %s :%s\r\n", msg->nick, errmsg);
+		} else {
+			warnx("%s", sqlite3_errmsg(db));
+		}
+	}
 
 	sqlite3_reset(stmt);
 }
