@@ -549,8 +549,6 @@ static void handlePing(struct Message *msg) {
 
 static void handleError(struct Message *msg) {
 	require(msg, false, 1);
-	tls_close(client);
-	dbClose();
 	errx(EX_UNAVAILABLE, "%s", msg->params[0]);
 }
 
@@ -600,11 +598,15 @@ static void handle(struct Message msg) {
 	}
 }
 
+static void atExit(void) {
+	if (client) tls_close(client);
+	dbClose();
+}
+
 static void quit(int sig) {
 	(void)sig;
 	format("QUIT\r\n");
-	tls_close(client);
-	dbClose();
+	atExit();
 	_exit(EX_OK);
 }
 
@@ -645,6 +647,7 @@ int main(int argc, char *argv[]) {
 	int flags = SQLITE_OPEN_READWRITE;
 	if (init) flags |= SQLITE_OPEN_CREATE;
 	dbFind(path, flags);
+	atexit(atExit);
 
 	if (init) {
 		dbInit();
