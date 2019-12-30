@@ -1,0 +1,164 @@
+.Dd December 29, 2019
+.Dt SCOOP 1
+.Os
+.
+.Sh NAME
+.Nm scoop
+.Nd query IRC logs
+.
+.Sh SYNOPSIS
+.Nm
+.Op Fl pqv
+.Op Fl A Ar time
+.Op Fl B Ar time
+.Op Fl C Ar time
+.Op Fl N Ar network
+.Op Fl T Ar target
+.Op Fl c Ar context
+.Op Fl d Ar path
+.Op Fl h Ar host
+.Op Fl l Ar limit
+.Op Fl n Ar nick
+.Op Fl t Ar type
+.Op Fl u Ar user
+.Op Ar search
+.Nm
+.Fl s
+.
+.Sh DESCRIPTION
+The
+.Nm
+utility queries the
+.Xr litterbox 1
+IRC log database.
+If standard output is a terminal,
+colored output is piped to
+.Ev PAGER
+with
+.Ev LESS=FRX
+if it is not already set.
+.
+.Pp
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl A Ar time
+Show events from the same context following each match.
+Events which occurred up to
+.Ar time
+seconds after the matched event are shown.
+The
+.Ar time
+argument may be suffixed with
+.Cm s ,
+.Cm m
+or
+.Cm h
+for seconds, minutes or hours, respectively.
+.
+.It Fl B Ar time
+Show events from the same context preceding each match.
+See
+.Fl A
+for the meaning of
+.Ar time .
+.
+.It Fl C Ar time
+Show events from the same context preceding and following each match.
+This is equivalent to setting both
+.Fl A
+and
+.Fl B .
+.
+.It Fl N Ar network
+Match events from the specified network.
+.
+.It Fl T Ar target
+Match events
+.Po
+of type
+.Cm kick
+or
+.Cm nick
+.Pc
+with the specified
+.Ar target .
+.
+.It Fl c Ar context
+Match events from the specified context,
+either channel or query name.
+.
+.It Fl d Ar path
+Set the database path.
+The database must have been initialized by
+.Xr litterbox 1 .
+The default path is as in
+.Xr litterbox 1 .
+.
+.It Fl h Ar host
+Match events from users with the specified hostname.
+.
+.It Fl l Ar limit
+Limit the number of most recent results.
+.
+.It Fl n Ar nick
+Match events from users with the specified nickname.
+.
+.It Fl p
+Match only events from channels.
+.
+.It Fl q
+Match only events from queries.
+.
+.It Fl s
+Instead of performing a query,
+launch the
+.Xr sqlite3 1
+shell for the database.
+.
+.It Fl t Ar type
+Match events of the specified
+.Ar type .
+The types are
+.Cm privmsg ,
+.Cm notice ,
+.Cm action ,
+.Cm join ,
+.Cm part ,
+.Cm quit ,
+.Cm kick ,
+.Cm nick ,
+.Cm topic .
+.
+.It Fl u Ar user
+Match events from users with the specified username.
+.
+.It Fl v
+Print the SQL query being used on standard error.
+.
+.It Ar search
+Match events using full-text search.
+The searchable columns are
+.Li network ,
+.Li channel ,
+.Li query ,
+.Li nick ,
+.Li user ,
+.Li target ,
+.Li message .
+For search query syntax, see
+.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
+.El
+.
+.Sh SEE ALSO
+.Xr litterbox 1
+.
+.Sh AUTHORS
+.An June Bug Aq Mt june@causal.agency
+.
+.Sh BUGS
+Send mail to
+.Aq Mt june@causal.agency
+or join
+.Li #ascii.town
+on
+.Li chat.freenode.net .
