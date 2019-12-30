@@ -105,6 +105,7 @@ static enum {
 	Private,
 	Public,
 } searchQuery;
+static int searchLimit = 10;
 
 static char *self;
 static char *network;
@@ -224,12 +225,13 @@ static void querySearch(struct Message *msg) {
 				AND coalesce(contexts.query = :query, true)
 				AND search MATCH :search
 			ORDER BY events.time DESC, events.event DESC
-			LIMIT 10
+			LIMIT :limit
 		)
 		SELECT * FROM results ORDER BY context, time;
 	);
 	dbPersist(&stmt, sql);
 	dbBindText(stmt, ":bold", "\2");
+	dbBindInt(stmt, ":limit", searchLimit);
 
 	dbBindText(stmt, ":network", network);
 	if (searchQuery == Public) {
@@ -633,7 +635,7 @@ int main(int argc, char *argv[]) {
 	const char *pass = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "!Qd:h:ij:mn:p:qu:vw:"))) {
+	while (0 < (opt = getopt(argc, argv, "!Qd:h:ij:l:mn:p:qu:vw:"))) {
 		switch (opt) {
 			break; case '!': insecure = true;
 			break; case 'Q': searchQuery = Public;
@@ -641,6 +643,7 @@ int main(int argc, char *argv[]) {
 			break; case 'h': host = optarg;
 			break; case 'i': init = true;
 			break; case 'j': join = optarg;
+			break; case 'l': searchLimit = strtol(optarg, NULL, 0);
 			break; case 'm': migrate = true;
 			break; case 'n': nick = optarg;
 			break; case 'p': port = optarg;

@@ -1,4 +1,4 @@
-.Dd December 27, 2019
+.Dd December 30, 2019
 .Dt LITTERBOX 1
 .Os
 .
@@ -12,6 +12,7 @@
 .Op Fl d Ar path
 .Op Fl h Ar host
 .Op Fl j Ar join
+.Op Fl l Ar limit
 .Op Fl n Ar nick
 .Op Fl p Ar port
 .Op Fl u Ar user
@@ -68,6 +69,14 @@ Initialize the database.
 .It Fl j Ar join
 Join the comma-separated list of channels
 .Ar join .
+.
+.It Fl l Ar limit
+Limit the number of results sent by the
+.Fl Q
+or
+.Fl q
+search query interface.
+The default limit is 10.
 .
 .It Fl m
 Migrate the database to the latest version.
