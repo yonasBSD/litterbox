@@ -25,6 +25,127 @@
 
 #include "database.h"
 
+struct Event {
+	const char *network;
+	const char *context;
+	const char *time;
+	enum Type type;
+	const char *nick;
+	const char *user;
+	const char *host;
+	const char *target;
+	const char *message;
+};
+
+typedef void Format(bool group, struct Event event);
+
+static void formatPlain(bool group, struct Event e) {
+	(void)group;
+	if (!e.target) e.target = "";
+	if (!e.message) e.message = "";
+	
+	printf("%s/%s: [%s] ", e.network, e.context, e.time);
+	switch (e.type) {
+		break; case Privmsg: {
+			printf("<%s> %s\n", e.nick, e.message);
+		}
+		break; case Notice: {
+			printf("-%s- %s\n", e.nick, e.message);
+		}
+		break; case Action: {
+			printf("* %s %s\n", e.nick, e.message);
+		}
+		break; case Join: {
+			printf("%s joined\n", e.nick);
+		}
+		break; case Part: {
+			printf("%s parted: %s\n", e.nick, e.message);
+		}
+		break; case Quit: {
+			printf("%s quit: %s\n", e.nick, e.message);
+		}
+		break; case Kick: {
+			printf("%s kicked %s: %s\n", e.nick, e.target, e.message);
+		}
+		break; case Nick: {
+			printf("%s changed nick to %s\n", e.nick, e.target);
+		}
+		break; case Topic: {
+			printf("%s set the topic: %s\n", e.nick, e.message);
+		}
+	}
+}
+
+static const int Colors[] = {
+	31, 32, 33, 34, 35, 36, 37,
+	90, 91, 92, 93, 94, 95, 96, 97,
+};
+
+static int color(const char *user) {
+	if (*user == '~') user++;
+	uint32_t hash = 0;
+	for (; *user; ++user) {
+		hash = (hash << 5) | (hash >> 27);
+		hash ^= *user;
+		hash *= 0x27220A95;
+	}
+	return Colors[hash % ARRAY_LEN(Colors)];
+}
+
+static void formatColor(bool group, struct Event e) {
+	if (!e.target) e.target = "";
+	if (!e.message) e.message = "";
+
+	static char network[256];
+	static char context[256];
+	if (group && (strcmp(e.network, network) || strcmp(e.context, context))) {
+		printf("%s%s/%s:\n", (network[0] ? "\n" : ""), e.network, e.context);
+		snprintf(network, sizeof(network), "%s", e.network);
+		snprintf(context, sizeof(context), "%s", e.context);
+	} else if (!group) {
+		printf("%s/%s: ", e.network, e.context);
+	}
+	printf("[%s] ", e.time);
+
+#define NICK "\33[%dm%s\33[m"
+	switch (e.type) {
+		break; case Privmsg: {
+			printf("<" NICK "> %s\n", color(e.user), e.nick, e.message);
+		}
+		break; case Notice: {
+			printf("-" NICK "- %s\n", color(e.user), e.nick, e.message);
+		}
+		break; case Action: {
+			printf("* " NICK " %s\n", color(e.user), e.nick, e.message);
+		}
+		break; case Join: {
+			printf(NICK " joined\n", color(e.user), e.nick);
+		}
+		break; case Part: {
+			printf(NICK " parted: %s\n", color(e.user), e.nick, e.message);
+		}
+		break; case Quit: {
+			printf(NICK " quit: %s\n", color(e.user), e.nick, e.message);
+		}
+		break; case Kick: {
+			printf(
+				NICK " kicked %s: %s\n",
+				color(e.user), e.nick, e.target, e.message
+			);
+		}
+		break; case Nick: {
+			printf(
+				NICK " changed nick to " NICK "\n",
+				color(e.user), e.nick, color(e.user), e.target
+			);
+		}
+		break; case Topic: {
+			printf(NICK "set the topic: %s\n", color(e.user), e.nick, e.message);
+		}
+	}
+#undef NICK
+}
+
 static const char *Inner = SQL(
 	SELECT
 		contexts.network,
@@ -36,6 +157,7 @@ static const char *Inner = SQL(
 			THEN names.nick
 			ELSE names.user
 		END,
+		names.host,
 		events.target,
 		highlight(search, 6, :open, :close),
 		events.event
@@ -70,86 +192,6 @@ static const char *Group = SQL(
 	SELECT * FROM results
 	ORDER BY network, context, time, event
 );
-
-typedef void Format(
-	const char *network, const char *context, const char *time, enum Type type,
-	const char *nick, const char *user, const char *target, const char *message
-);
-
-static void formatPlain(
-	const char *network, const char *context, const char *time, enum Type type,
-	const char *nick, const char *user, const char *target, const char *message
-) {
-	(void)user;
-	if (!target) target = "";
-	if (!message) message = "";
-	printf("%s/%s: [%s] ", network, context, time);
-	switch (type) {
-		break; case Privmsg: printf("<%s> %s\n", nick, message);
-		break; case Notice: printf("-%s- %s\n", nick, message);
-		break; case Action: printf("* %s %s\n", nick, message);
-		break; case Join: printf("%s joined\n", nick);
-		break; case Part: printf("%s parted: %s\n", nick, message);
-		break; case Quit: printf("%s quit: %s\n", nick, message);
-		break; case Kick: printf("%s kicked %s: %s\n", nick, target, message);
-		break; case Nick: printf("%s changed nick to %s\n", nick, target);
-		break; case Topic: printf("%s set the topic: %s\n", nick, message);
-	}
-}
-
-static const int Colors[] = {
-	31, 32, 33, 34, 35, 36, 37,
-	90, 91, 92, 93, 94, 95, 96, 97,
-};
-
-static int color(const char *user) {
-	if (*user == '~') user++;
-	uint32_t hash = 0;
-	for (; *user; ++user) {
-		hash = (hash << 5) | (hash >> 27);
-		hash ^= *user;
-		hash *= 0x27220A95;
-	}
-	return Colors[hash % ARRAY_LEN(Colors)];
-}
-
-static void formatColor(
-	const char *network, const char *context, const char *time, enum Type type,
-	const char *nick, const char *user, const char *target, const char *message
-) {
-	if (!target) target = "";
-	if (!message) message = "";
-	printf("%s/%s: [%s] ", network, context, time);
-	switch (type) {
-		break; case Privmsg:
-			printf("<\33[%dm%s\33[m> %s\n", color(user), nick, message);
-		break; case Notice:
-			printf("-\33[%dm%s\33[m- %s\n", color(user), nick, message);
-		break; case Action:
-			printf("* \33[%dm%s\33[m %s\n", color(user), nick, message);
-		break; case Join:
-			printf("\33[%dm%s\33[m joined\n", color(user), nick);
-		break; case Part:
-			printf("\33[%dm%s\33[m parted: %s\n", color(user), nick, message);
-		break; case Quit:
-			printf("\33[%dm%s\33[m quit: %s\n", color(user), nick, message);
-		break; case Kick:
-			printf(
-				"\33[%dm%s\33[m kicked %s: %s\n",
-				color(user), nick, target, message
-			);
-		break; case Nick:
-			printf(
-				"\33[%dm%s\33[m changed nick to \33[%dm%s\33[m\n",
-				color(user), nick, color(user), target
-			);
-		break; case Topic:
-			printf(
-				"\33[%dm%s\33[m set the topic: %s\n",
-				color(user), nick, message
-			);
-	}
-}
 
 static const char *TypeNames[] = {
 #define X(id, name) [id] = name,
@@ -290,16 +332,18 @@ int main(int argc, char *argv[]) {
 
 	int result;
 	while (SQLITE_ROW == (result = sqlite3_step(stmt))) {
-		int i = 0;
-		const char *network = (const char *)sqlite3_column_text(stmt, i++);
-		const char *context = (const char *)sqlite3_column_text(stmt, i++);
-		const char *time = (const char *)sqlite3_column_text(stmt, i++);
-		enum Type type = sqlite3_column_int(stmt, i++);
-		const char *nick = (const char *)sqlite3_column_text(stmt, i++);
-		const char *user = (const char *)sqlite3_column_text(stmt, i++);
-		const char *target = (const char *)sqlite3_column_text(stmt, i++);
-		const char *message = (const char *)sqlite3_column_text(stmt, i++);
-		format(network, context, time, type, nick, user, target, message);
+		struct Event event = {
+			.network = (const char *)sqlite3_column_text(stmt, 0),
+			.context = (const char *)sqlite3_column_text(stmt, 1),
+			.time    = (const char *)sqlite3_column_text(stmt, 2),
+			.type    = sqlite3_column_int(stmt, 3),
+			.nick    = (const char *)sqlite3_column_text(stmt, 4),
+			.user    = (const char *)sqlite3_column_text(stmt, 5),
+			.host    = (const char *)sqlite3_column_text(stmt, 6),
+			.target  = (const char *)sqlite3_column_text(stmt, 7),
+			.message = (const char *)sqlite3_column_text(stmt, 8),
+		};
+		format(group, event);
 	}
 	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
 
