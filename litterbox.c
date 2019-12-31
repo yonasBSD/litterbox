@@ -216,7 +216,8 @@ static void querySearch(struct Message *msg) {
 					ELSE names.user
 				END,
 				events.target,
-				highlight(search, 6, :bold, :bold)
+				highlight(search, 6, :bold, :bold),
+				events.event
 			FROM events
 			JOIN contexts ON contexts.context = events.context
 			JOIN names ON names.name = events.name
@@ -227,7 +228,7 @@ static void querySearch(struct Message *msg) {
 			ORDER BY events.time DESC, events.event DESC
 			LIMIT :limit
 		)
-		SELECT * FROM results ORDER BY context, time;
+		SELECT * FROM results ORDER BY context, time, event;
 	);
 	dbPersist(&stmt, sql);
 	dbBindText(stmt, ":bold", "\2");
