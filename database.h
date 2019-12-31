@@ -32,16 +32,21 @@
 
 enum { DatabaseVersion = 0 };
 
+#define ENUM_TYPE \
+	X(Privmsg, "privmsg") \
+	X(Notice, "notice") \
+	X(Action, "action") \
+	X(Join, "join") \
+	X(Part, "part") \
+	X(Quit, "quit") \
+	X(Kick, "kick") \
+	X(Nick, "nick") \
+	X(Topic, "topic")
+
 enum Type {
-	Privmsg,
-	Notice,
-	Action,
-	Join,
-	Part,
-	Quit,
-	Kick,
-	Nick,
-	Topic,
+#define X(id, _) id,
+	ENUM_TYPE
+#undef X
 };
 
 static bool verbose;
