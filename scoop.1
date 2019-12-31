@@ -1,4 +1,4 @@
-.Dd December 29, 2019
+.Dd December 30, 2019
 .Dt SCOOP 1
 .Os
 .
@@ -9,9 +9,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl pqv
-.Op Fl A Ar time
-.Op Fl B Ar time
-.Op Fl C Ar time
 .Op Fl N Ar network
 .Op Fl T Ar target
 .Op Fl c Ar context
@@ -41,34 +38,6 @@ if it is not already set.
 .Pp
 The arguments are as follows:
 .Bl -tag -width Ds
-.It Fl A Ar time
-Show events from the same context following each match.
-Events which occurred up to
-.Ar time
-seconds after the matched event are shown.
-The
-.Ar time
-argument may be suffixed with
-.Cm s ,
-.Cm m
-or
-.Cm h
-for seconds, minutes or hours, respectively.
-.
-.It Fl B Ar time
-Show events from the same context preceding each match.
-See
-.Fl A
-for the meaning of
-.Ar time .
-.
-.It Fl C Ar time
-Show events from the same context preceding and following each match.
-This is equivalent to setting both
-.Fl A
-and
-.Fl B .
-.
 .It Fl N Ar network
 Match events from the specified network.
 .
