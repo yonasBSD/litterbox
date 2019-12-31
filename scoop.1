@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl pqv
+.Op Fl gpqv
 .Op Fl D Ar date
 .Op Fl N Ar network
 .Op Fl T Ar target
@@ -43,7 +43,9 @@ The arguments are as follows:
 Match events which occurred on
 .Ar date ,
 of the format
-.Ar YYYY-MM-DD .
+.Ar YYYY-MM-DD
+or the keyword
+.Cm now .
 .
 .It Fl N Ar network
 Match events from contexts on
@@ -71,6 +73,9 @@ The database must have been initialized by
 .Xr litterbox 1 .
 The default path is as in
 .Xr litterbox 1 .
+.
+.It Fl g
+Group events by context.
 .
 .It Fl h Ar host
 Match events from users with the hostname

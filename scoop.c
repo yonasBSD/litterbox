@@ -29,6 +29,7 @@ static const char *Inner = SQL(
 	SELECT
 		contexts.network,
 		contexts.name AS context,
+		// TODO: Replace with a strftime and option.
 		date(events.time) || 'T' || time(events.time) || 'Z' AS time,
 		events.type,
 		names.nick,
@@ -64,6 +65,11 @@ static const char *Limit = SQL(
 static const char *Outer = SQL(
 	SELECT * FROM results
 	ORDER BY time, event
+);
+
+static const char *Group = SQL(
+	SELECT * FROM results
+	ORDER BY network, context, time, event
 );
 
 typedef void Format(
@@ -176,15 +182,17 @@ int main(int argc, char *argv[]) {
 	const char *target = NULL;
 	const char *search = NULL;
 	int limit = -1;
+	bool group = false;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "D:N:T:c:d:h:l:n:pqst:u:v"))) {
+	while (0 < (opt = getopt(argc, argv, "D:N:T:c:d:gh:l:n:pqst:u:v"))) {
 		switch (opt) {
 			break; case 'D': date = optarg;
 			break; case 'N': network = optarg;
 			break; case 'T': target = optarg;
 			break; case 'c': context = optarg;
 			break; case 'd': path = optarg;
+			break; case 'g': group = true;
 			break; case 'h': host = optarg;
 			break; case 'l': limit = strtol(optarg, NULL, 0);
 			break; case 'n': nick = optarg;
@@ -244,13 +252,13 @@ int main(int argc, char *argv[]) {
 		snprintf(
 			sql, sizeof(sql),
 			"WITH results AS (%s AND %s %s) %s;",
-			Inner, Search, Limit, Outer
+			Inner, Search, Limit, (group ? Group : Outer)
 		);
 	} else {
 		snprintf(
 			sql, sizeof(sql),
 			"WITH results AS (%s %s) %s;",
-			Inner, Limit, Outer
+			Inner, Limit, (group ? Group : Outer)
 		);
 	}
 
