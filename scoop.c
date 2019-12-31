@@ -29,8 +29,7 @@ static const char *Inner = SQL(
 	SELECT
 		contexts.network,
 		contexts.name AS context,
-		// TODO: Replace with a strftime and option.
-		date(events.time) || 'T' || time(events.time) || 'Z' AS time,
+		strftime(coalesce(:format, '%Y-%m-%dT%H:%M:%SZ'), events.time) AS time,
 		events.type,
 		names.nick,
 		CASE WHEN names.user = '*'
@@ -183,9 +182,10 @@ int main(int argc, char *argv[]) {
 	const char *search = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "D:N:T:c:d:gh:l:n:pqst:u:v"))) {
+	while (0 < (opt = getopt(argc, argv, "D:F:N:T:c:d:gh:l:n:pqst:u:v"))) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
+			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
 			break; case 'N': binds[n++] = Bind(":network", optarg, 0);
 			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
 			break; case 'c': binds[n++] = Bind(":context", optarg, 0);

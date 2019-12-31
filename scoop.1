@@ -10,6 +10,7 @@
 .Nm
 .Op Fl gpqv
 .Op Fl D Ar date
+.Op Fl F Ar format
 .Op Fl N Ar network
 .Op Fl T Ar target
 .Op Fl c Ar context
@@ -46,6 +47,16 @@ of the format
 .Ar YYYY-MM-DD
 or the keyword
 .Cm now .
+.
+.It Fl F Ar format
+Format timestamps using the
+.Ar format
+string,
+similar to
+.Xr strftime 3 .
+The default format is ISO8601.
+See
+.Lk https://www.sqlite.org/lang_datefunc.html
 .
 .It Fl N Ar network
 Match events from contexts on
