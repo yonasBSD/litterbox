@@ -1,4 +1,4 @@
-.Dd December 30, 2019
+.Dd December 31, 2019
 .Dt SCOOP 1
 .Os
 .
@@ -40,10 +40,14 @@ if it is not already set.
 The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl D Ar date
-Match events on the specified date.
+Match events which occurred on
+.Ar date ,
+of the format
+.Ar YYYY-MM-DD .
 .
 .It Fl N Ar network
-Match events from the specified network.
+Match events from contexts on
+.Ar network .
 .
 .It Fl T Ar target
 Match events
@@ -53,12 +57,13 @@ of type
 or
 .Cm nick
 .Pc
-with the specified
+with
 .Ar target .
 .
 .It Fl c Ar context
-Match events from the specified context,
-either channel or query name.
+Match events from
+.Ar context ,
+either a channel or query name.
 .
 .It Fl d Ar path
 Set the database path.
@@ -68,13 +73,16 @@ The default path is as in
 .Xr litterbox 1 .
 .
 .It Fl h Ar host
-Match events from users with the specified hostname.
+Match events from users with the hostname
+.Ar host .
 .
 .It Fl l Ar limit
-Limit the number of most recent results.
+Limit the number of events matched,
+ordered by most recent.
 .
 .It Fl n Ar nick
-Match events from users with the specified nickname.
+Match events from users with the nickname
+.Ar nick .
 .
 .It Fl p
 Match only events from channels.
@@ -89,7 +97,7 @@ launch the
 shell for the database.
 .
 .It Fl t Ar type
-Match events of the specified
+Match events of
 .Ar type .
 The types are
 .Cm privmsg ,
@@ -103,10 +111,11 @@ The types are
 .Cm topic .
 .
 .It Fl u Ar user
-Match events from users with the specified username.
+Match events from users with the username
+.Ar user .
 .
 .It Fl v
-Print the SQL query being used on standard error.
+Print the expanded SQL query being used to standard error.
 .
 .It Ar search
 Match events using full-text search.
