@@ -9,6 +9,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl pqv
+.Op Fl D Ar date
 .Op Fl N Ar network
 .Op Fl T Ar target
 .Op Fl c Ar context
@@ -38,6 +39,9 @@ if it is not already set.
 .Pp
 The arguments are as follows:
 .Bl -tag -width Ds
+.It Fl D Ar date
+Match events on the specified date.
+.
 .It Fl N Ar network
 Match events from the specified network.
 .
