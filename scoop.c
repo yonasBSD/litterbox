@@ -59,7 +59,7 @@ static const char *Search = SQL(search MATCH :search);
 
 static const char *Limit = SQL(
 	ORDER BY time DESC, event DESC
-	LIMIT :limit
+	LIMIT coalesce(:limit, -1)
 );
 
 static const char *Outer = SQL(
@@ -158,49 +158,47 @@ static const char *TypeNames[] = {
 #undef X
 };
 
-static const enum Type *parseType(const char *input) {
-	static enum Type type;
-	for (type = 0; type < ARRAY_LEN(TypeNames); ++type) {
-		if (!strcmp(input, TypeNames[type])) return &type;
+static enum Type parseType(const char *input) {
+	for (enum Type type = 0; type < ARRAY_LEN(TypeNames); ++type) {
+		if (!strcmp(input, TypeNames[type])) return type;
 	}
 	errx(EX_USAGE, "no such type %s", input);
+}
+
+static struct Bind {
+	const char *param;
+	const char *text;
+	int value;
+} Bind(const char *param, const char *text, int value) {
+	return (struct Bind) { param, text, value };
 }
 
 int main(int argc, char *argv[]) {
 	char *path = NULL;
 	bool shell = false;
-
-	bool public = false;
-	bool query = false;
-	const char *network = NULL;
-	const char *context = NULL;
-	const char *date = NULL;
-	const enum Type *type = NULL;
-	const char *nick = NULL;
-	const char *user = NULL;
-	const char *host = NULL;
-	const char *target = NULL;
-	const char *search = NULL;
-	int limit = -1;
 	bool group = false;
+
+	int n = 0;
+	struct Bind binds[argc];
+	const char *search = NULL;
 
 	int opt;
 	while (0 < (opt = getopt(argc, argv, "D:N:T:c:d:gh:l:n:pqst:u:v"))) {
 		switch (opt) {
-			break; case 'D': date = optarg;
-			break; case 'N': network = optarg;
-			break; case 'T': target = optarg;
-			break; case 'c': context = optarg;
+			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
+			break; case 'N': binds[n++] = Bind(":network", optarg, 0);
+			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
+			break; case 'c': binds[n++] = Bind(":context", optarg, 0);
 			break; case 'd': path = optarg;
 			break; case 'g': group = true;
-			break; case 'h': host = optarg;
-			break; case 'l': limit = strtol(optarg, NULL, 0);
-			break; case 'n': nick = optarg;
-			break; case 'p': public = true;
-			break; case 'q': query = true;
+			break; case 'h': binds[n++] = Bind(":host", optarg, 0);
+			break; case 'l': binds[n++] = Bind(":limit", optarg, 0);
+			break; case 'n': binds[n++] = Bind(":nick", optarg, 0);
+			break; case 'p': binds[n++] = Bind(":query", NULL, 0);
+			break; case 'q': binds[n++] = Bind(":query", NULL, 1);
 			break; case 's': shell = true;
-			break; case 't': type = parseType(optarg);
-			break; case 'u': user = optarg;
+			break; case 't': binds[n++] = Bind(":type", NULL, parseType(optarg));
+			break; case 'u': binds[n++] = Bind(":user", optarg, 0);
 			break; case 'v': verbose = true;
 			break; default:  return EX_USAGE;
 		}
@@ -254,6 +252,7 @@ int main(int argc, char *argv[]) {
 			"WITH results AS (%s AND %s %s) %s;",
 			Inner, Search, Limit, (group ? Group : Outer)
 		);
+		binds[n++] = Bind(":search", search, 0);
 	} else {
 		snprintf(
 			sql, sizeof(sql),
@@ -263,18 +262,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	sqlite3_stmt *stmt = dbPrepare(sql);
-	dbBindText(stmt, ":network", network);
-	dbBindText(stmt, ":context", context);
-	if (public) dbBindInt(stmt, ":query", false);
-	if (query) dbBindInt(stmt, ":query", true);
-	dbBindText(stmt, ":date", date);
-	if (type) dbBindInt(stmt, ":type", *type);
-	dbBindText(stmt, ":nick", nick);
-	dbBindText(stmt, ":user", user);
-	dbBindText(stmt, ":host", host);
-	dbBindText(stmt, ":target", target);
-	if (search) dbBindText(stmt, ":search", search);
-	dbBindInt(stmt, ":limit", limit);
+	for (int i = 0; i < n; ++i) {
+		if (binds[i].text) {
+			dbBindText(stmt, binds[i].param, binds[i].text);
+		} else {
+			dbBindInt(stmt, binds[i].param, binds[i].value);
+		}
+	}
 
 	if (tty) {
 		dbBindText(stmt, ":open", "\33[7m");
