@@ -118,12 +118,8 @@ int main(int argc, char *argv[]) {
 	}
 	if (optind < argc) search = argv[optind];
 
-	dbFind(path, SQLITE_OPEN_READONLY);
-	if (dbVersion() != DatabaseVersion) {
-		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
-	}
-
 	if (shell) {
+		dbFind(path, SQLITE_OPEN_READONLY);
 		path = strdup(sqlite3_db_filename(db, "main"));
 		if (!path) err(EX_OSERR, "strdup");
 		dbClose();
@@ -131,7 +127,36 @@ int main(int argc, char *argv[]) {
 		err(EX_UNAVAILABLE, "sqlite3");
 	}
 
-	// TODO: Set up pipe to $PAGER.
+	bool tty = isatty(STDOUT_FILENO);
+	if (tty) {
+		const char *pager = getenv("PAGER");
+		if (!pager) pager = "less";
+		setenv("LESS", "FRX", 0);
+
+		int rw[2];
+		int error = pipe(rw);
+		if (error) err(EX_OSERR, "pipe");
+
+		pid_t pid = fork();
+		if (pid < 0) err(EX_OSERR, "fork");
+
+		if (!pid) {
+			dup2(rw[0], STDIN_FILENO);
+			close(rw[0]);
+			close(rw[1]);
+			execlp(pager, pager, NULL);
+			err(EX_CONFIG, "%s", pager);
+		}
+
+		dup2(rw[1], STDOUT_FILENO);
+		close(rw[0]);
+		close(rw[1]);
+	}
+
+	dbFind(path, SQLITE_OPEN_READONLY);
+	if (dbVersion() != DatabaseVersion) {
+		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
+	}
 
 	char sql[4096];
 	if (search) {
@@ -205,4 +230,10 @@ int main(int argc, char *argv[]) {
 
 	sqlite3_finalize(stmt);
 	dbClose();
+
+	if (tty) {
+		fclose(stdout);
+		int status;
+		wait(&status);
+	}
 }
