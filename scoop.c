@@ -268,8 +268,8 @@ int main(int argc, char *argv[]) {
 	dbBindInt(stmt, ":limit", limit);
 
 	if (tty) {
-		dbBindText(stmt, ":open", "\33[33m");
-		dbBindText(stmt, ":close", "\33[m");
+		dbBindText(stmt, ":open", "\33[7m");
+		dbBindText(stmt, ":close", "\33[27m");
 	} else {
 		// XXX: If you leave these NULL fts5 segfaults...
 		dbBindText(stmt, ":open", "");
