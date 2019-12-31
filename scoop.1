@@ -15,6 +15,7 @@
 .Op Fl T Ar target
 .Op Fl c Ar context
 .Op Fl d Ar path
+.Op Fl f Ar format
 .Op Fl h Ar host
 .Op Fl l Ar limit
 .Op Fl n Ar nick
@@ -84,6 +85,16 @@ The database must have been initialized by
 .Xr litterbox 1 .
 The default path is as in
 .Xr litterbox 1 .
+.
+.It Fl f Ar format
+Set the output format to one of
+.Cm plain ,
+.Cm color .
+The default format is
+.Cm color
+if standard output is a terminal,
+.Cm plain
+otherwise.
 .
 .It Fl g
 Group events by context.

@@ -206,6 +206,21 @@ static enum Type parseType(const char *input) {
 	errx(EX_USAGE, "no such type %s", input);
 }
 
+static const struct {
+	const char *name;
+	Format *fn;
+} Formats[] = {
+	{ "plain", formatPlain },
+	{ "color", formatColor },
+};
+
+static Format *parseFormat(const char *name) {
+	for (size_t i = 0; i < ARRAY_LEN(Formats); ++i) {
+		if (!strcmp(name, Formats[i].name)) return Formats[i].fn;
+	}
+	errx(EX_USAGE, "no such format %s", name);
+}
+
 static struct Bind {
 	const char *param;
 	const char *text;
@@ -215,16 +230,19 @@ static struct Bind {
 }
 
 int main(int argc, char *argv[]) {
+	bool tty = isatty(STDOUT_FILENO);
+
 	char *path = NULL;
 	bool shell = false;
 	bool group = false;
+	Format *format = (tty ? formatColor : formatPlain);
 
 	int n = 0;
 	struct Bind binds[argc];
 	const char *search = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "D:F:N:T:c:d:gh:l:n:pqst:u:v"))) {
+	while (0 < (opt = getopt(argc, argv, "D:F:N:T:c:d:f:gh:l:n:pqst:u:v"))) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
@@ -232,6 +250,7 @@ int main(int argc, char *argv[]) {
 			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
 			break; case 'c': binds[n++] = Bind(":context", optarg, 0);
 			break; case 'd': path = optarg;
+			break; case 'f': format = parseFormat(optarg);
 			break; case 'g': group = true;
 			break; case 'h': binds[n++] = Bind(":host", optarg, 0);
 			break; case 'l': binds[n++] = Bind(":limit", optarg, 0);
@@ -256,7 +275,6 @@ int main(int argc, char *argv[]) {
 		err(EX_UNAVAILABLE, "sqlite3");
 	}
 
-	bool tty = isatty(STDOUT_FILENO);
 	if (tty) {
 		const char *pager = getenv("PAGER");
 		if (!pager) pager = "less";
@@ -312,7 +330,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (tty) {
+	if (format == formatColor) {
 		dbBindText(stmt, ":open", "\33[7m");
 		dbBindText(stmt, ":close", "\33[27m");
 	} else {
@@ -327,8 +345,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "%s\n", expand);
 		sqlite3_free(expand);
 	}
-
-	Format *format = (tty ? formatColor : formatPlain);
 
 	int result;
 	while (SQLITE_ROW == (result = sqlite3_step(stmt))) {
