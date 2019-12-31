@@ -266,7 +266,7 @@ static const char *InitSQL = SQL(
 		nick, user, target, message
 	FROM events
 	JOIN contexts USING (context)
-	JOIN names ON names.name = events.name;
+	JOIN names USING (name);
 
 	CREATE VIRTUAL TABLE search USING fts5 (
 		network, channel, query, nick, user, target, message,

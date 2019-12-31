@@ -219,8 +219,8 @@ static void querySearch(struct Message *msg) {
 				highlight(search, 6, :bold, :bold),
 				events.event
 			FROM events
-			JOIN contexts ON contexts.context = events.context
-			JOIN names ON names.name = events.name
+			JOIN contexts USING (context)
+			JOIN names USING (name)
 			JOIN search ON search.rowid = events.event
 			WHERE contexts.network = :network
 				AND coalesce(contexts.query = :query, true)
