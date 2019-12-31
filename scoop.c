@@ -65,6 +65,86 @@ static const char *Outer = SQL(
 	ORDER BY time, event
 );
 
+typedef void Format(
+	const char *network, const char *context, const char *time, enum Type type,
+	const char *nick, const char *user, const char *target, const char *message
+);
+
+static void formatPlain(
+	const char *network, const char *context, const char *time, enum Type type,
+	const char *nick, const char *user, const char *target, const char *message
+) {
+	(void)user;
+	if (!target) target = "";
+	if (!message) message = "";
+	printf("%s/%s: [%s] ", network, context, time);
+	switch (type) {
+		break; case Privmsg: printf("<%s> %s\n", nick, message);
+		break; case Notice: printf("-%s- %s\n", nick, message);
+		break; case Action: printf("* %s %s\n", nick, message);
+		break; case Join: printf("%s joined\n", nick);
+		break; case Part: printf("%s parted: %s\n", nick, message);
+		break; case Quit: printf("%s quit: %s\n", nick, message);
+		break; case Kick: printf("%s kicked %s: %s\n", nick, target, message);
+		break; case Nick: printf("%s changed nick to %s\n", nick, target);
+		break; case Topic: printf("%s set the topic: %s\n", nick, message);
+	}
+}
+
+static const int Colors[] = {
+	31, 32, 33, 34, 35, 36, 37,
+	90, 91, 92, 93, 94, 95, 96, 97,
+};
+
+static int color(const char *user) {
+	if (*user == '~') user++;
+	uint32_t hash = 0;
+	for (; *user; ++user) {
+		hash = (hash << 5) | (hash >> 27);
+		hash ^= *user;
+		hash *= 0x27220A95;
+	}
+	return Colors[hash % ARRAY_LEN(Colors)];
+}
+
+static void formatColor(
+	const char *network, const char *context, const char *time, enum Type type,
+	const char *nick, const char *user, const char *target, const char *message
+) {
+	if (!target) target = "";
+	if (!message) message = "";
+	printf("%s/%s: [%s] ", network, context, time);
+	switch (type) {
+		break; case Privmsg:
+			printf("<\33[%dm%s\33[m> %s\n", color(user), nick, message);
+		break; case Notice:
+			printf("-\33[%dm%s\33[m- %s\n", color(user), nick, message);
+		break; case Action:
+			printf("* \33[%dm%s\33[m %s\n", color(user), nick, message);
+		break; case Join:
+			printf("\33[%dm%s\33[m joined\n", color(user), nick);
+		break; case Part:
+			printf("\33[%dm%s\33[m parted: %s\n", color(user), nick, message);
+		break; case Quit:
+			printf("\33[%dm%s\33[m quit: %s\n", color(user), nick, message);
+		break; case Kick:
+			printf(
+				"\33[%dm%s\33[m kicked %s: %s\n",
+				color(user), nick, target, message
+			);
+		break; case Nick:
+			printf(
+				"\33[%dm%s\33[m changed nick to %s\n",
+				color(user), nick, target
+			);
+		break; case Topic:
+			printf(
+				"\33[%dm%s\33[m set the topic: %s\n",
+				color(user), nick, message
+			);
+	}
+}
+
 static const char *TypeNames[] = {
 #define X(id, name) [id] = name,
 	ENUM_TYPE
@@ -203,6 +283,8 @@ int main(int argc, char *argv[]) {
 		sqlite3_free(expand);
 	}
 
+	Format *format = (tty ? formatColor : formatPlain);
+
 	int result;
 	while (SQLITE_ROW == (result = sqlite3_step(stmt))) {
 		int i = 0;
@@ -214,22 +296,7 @@ int main(int argc, char *argv[]) {
 		const char *user = (const char *)sqlite3_column_text(stmt, i++);
 		const char *target = (const char *)sqlite3_column_text(stmt, i++);
 		const char *message = (const char *)sqlite3_column_text(stmt, i++);
-		if (!target) target = "";
-		if (!message) message = "";
-
-		// TODO: Nick coloring.
-		printf("%s/%s: [%s] ", network, context, time);
-		switch (type) {
-			break; case Privmsg: printf("<%s> %s\n", nick, message);
-			break; case Notice: printf("-%s- %s\n", nick, message);
-			break; case Action: printf("* %s %s\n", nick, message);
-			break; case Join: printf("%s joined\n", nick);
-			break; case Part: printf("%s parted: %s\n", nick, message);
-			break; case Quit: printf("%s quit: %s\n", nick, message);
-			break; case Kick: printf("%s kicked %s: %s\n", nick, target, message);
-			break; case Nick: printf("%s changed nick to %s\n", nick, target);
-			break; case Topic: printf("%s set the topic: %s\n", nick, message);
-		}
+		format(network, context, time, type, nick, user, target, message);
 	}
 	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
 
