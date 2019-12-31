@@ -41,9 +41,6 @@ typedef void Format(bool group, struct Event event);
 
 static void formatPlain(bool group, struct Event e) {
 	(void)group;
-	if (!e.target) e.target = "";
-	if (!e.message) e.message = "";
-	
 	printf("%s/%s: [%s] ", e.network, e.context, e.time);
 	switch (e.type) {
 		break; case Privmsg: {
@@ -93,9 +90,6 @@ static int color(const char *user) {
 }
 
 static void formatColor(bool group, struct Event e) {
-	if (!e.target) e.target = "";
-	if (!e.message) e.message = "";
-
 	static char network[256];
 	static char context[256];
 	if (group && (strcmp(e.network, network) || strcmp(e.context, context))) {
@@ -144,6 +138,45 @@ static void formatColor(bool group, struct Event e) {
 		}
 	}
 #undef NICK
+}
+
+static void formatIRC(bool group, struct Event e) {
+	(void)group;
+	if (!strcmp(e.host, e.nick)) {
+		printf("@time=%s :%s ", e.time, e.host);
+	} else {
+		printf("@time=%s :%s!%s@%s ", e.time, e.nick, e.user, e.host);
+	}
+	if (!strcmp(e.context, e.nick)) e.context = "*";
+	switch (e.type) {
+		break; case Privmsg: {
+			printf("PRIVMSG %s :%s\r\n", e.context, e.message);
+		}
+		break; case Notice: {
+			printf("NOTICE %s :%s\r\n", e.context, e.message);
+		}
+		break; case Action: {
+			printf("PRIVMSG %s :\1ACTION %s\1\r\n", e.context, e.message);
+		}
+		break; case Join: {
+			printf("JOIN %s\r\n", e.context);
+		}
+		break; case Part: {
+			printf("PART %s :%s\r\n", e.context, e.message);
+		}
+		break; case Quit: {
+			printf("QUIT :%s\r\n", e.message);
+		}
+		break; case Kick: {
+			printf("KICK %s %s :%s\r\n", e.context, e.target, e.message);
+		}
+		break; case Nick: {
+			printf("NICK %s\r\n", e.target);
+		}
+		break; case Topic: {
+			printf("TOPIC %s :%s\r\n", e.context, e.message);
+		}
+	}
 }
 
 static const char *Inner = SQL(
@@ -212,6 +245,7 @@ static const struct {
 } Formats[] = {
 	{ "plain", formatPlain },
 	{ "color", formatColor },
+	{ "irc", formatIRC },
 };
 
 static Format *parseFormat(const char *name) {
@@ -359,6 +393,8 @@ int main(int argc, char *argv[]) {
 			.target  = (const char *)sqlite3_column_text(stmt, 7),
 			.message = (const char *)sqlite3_column_text(stmt, 8),
 		};
+		if (!event.target) event.target = "";
+		if (!event.message) event.message = "";
 		format(group, event);
 	}
 	if (result != SQLITE_DONE) warnx("%s", sqlite3_errmsg(db));
