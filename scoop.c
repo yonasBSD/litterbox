@@ -187,9 +187,14 @@ int main(int argc, char *argv[]) {
 	if (search) dbBindText(stmt, ":search", search);
 	dbBindInt(stmt, ":limit", limit);
 
-	// FIXME: Conditional on terminal.
-	dbBindText(stmt, ":open", "\33[33m");
-	dbBindText(stmt, ":close", "\33[m");
+	if (tty) {
+		dbBindText(stmt, ":open", "\33[33m");
+		dbBindText(stmt, ":close", "\33[m");
+	} else {
+		// XXX: If you leave these NULL fts5 segfaults...
+		dbBindText(stmt, ":open", "");
+		dbBindText(stmt, ":close", "");
+	}
 
 	if (verbose) {
 		char *expand = sqlite3_expanded_sql(stmt);
