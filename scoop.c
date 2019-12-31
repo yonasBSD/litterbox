@@ -134,8 +134,8 @@ static void formatColor(
 			);
 		break; case Nick:
 			printf(
-				"\33[%dm%s\33[m changed nick to %s\n",
-				color(user), nick, target
+				"\33[%dm%s\33[m changed nick to \33[%dm%s\33[m\n",
+				color(user), nick, color(user), target
 			);
 		break; case Topic:
 			printf(
