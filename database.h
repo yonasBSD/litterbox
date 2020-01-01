@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,17 @@ enum Type {
 	ENUM_TYPE
 #undef X
 };
+
+static inline uint32_t hash(const char *user) {
+	if (*user == '~') user++;
+	uint32_t hash = 0;
+	for (; *user; ++user) {
+		hash = (hash << 5) | (hash >> 27);
+		hash ^= *user;
+		hash *= 0x27220A95;
+	}
+	return hash;
+}
 
 static bool verbose;
 static sqlite3 *db;

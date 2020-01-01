@@ -18,7 +18,6 @@
 #include <err.h>
 #include <signal.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -192,14 +191,7 @@ static void handleReplyEndOfMOTD(struct Message *msg) {
 }
 
 static int color(const char *user) {
-	if (*user == '~') user++;
-	uint32_t hash = 0;
-	for (; *user; ++user) {
-		hash = (hash << 5) | (hash >> 27);
-		hash ^= *user;
-		hash *= 0x27220A95;
-	}
-	return 2 + hash % 14;
+	return 2 + hash(user) % 14;
 }
 
 static void querySearch(struct Message *msg) {

@@ -79,14 +79,7 @@ static const int Colors[] = {
 };
 
 static int color(const char *user) {
-	if (*user == '~') user++;
-	uint32_t hash = 0;
-	for (; *user; ++user) {
-		hash = (hash << 5) | (hash >> 27);
-		hash ^= *user;
-		hash *= 0x27220A95;
-	}
-	return Colors[hash % ARRAY_LEN(Colors)];
+	return Colors[hash(user) % ARRAY_LEN(Colors)];
 }
 
 static void formatColor(bool group, struct Event e) {
