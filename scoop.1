@@ -1,4 +1,4 @@
-.Dd December 31, 2019
+.Dd January 1, 2020
 .Dt SCOOP 1
 .Os
 .
@@ -169,6 +169,15 @@ The searchable columns are
 .Li message .
 For search query syntax, see
 .Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
+.El
+.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev PAGER
+The command to pipe terminal output to.
+If it is unset,
+.Ev PAGER=less
+is used.
 .El
 .
 .Sh SEE ALSO
