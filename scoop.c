@@ -179,10 +179,7 @@ static const char *Inner = SQL(
 		strftime(coalesce(:format, '%Y-%m-%dT%H:%M:%SZ'), events.time) AS time,
 		events.type,
 		names.nick,
-		CASE WHEN names.user = '*'
-			THEN names.nick
-			ELSE names.user
-		END,
+		names.user,
 		names.host,
 		events.target,
 		highlight(search, 6, :open, :close),

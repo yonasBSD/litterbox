@@ -200,13 +200,10 @@ static void querySearch(struct Message *msg) {
 		WITH results AS (
 			SELECT
 				contexts.name AS context,
-				date(events.time) || 'T' || time(events.time) || 'Z' AS time,
+				strftime('%Y-%m-%dT%H:%M:%SZ', events.time) AS time,
 				events.type,
 				names.nick,
-				CASE WHEN names.user = '*'
-					THEN names.nick
-					ELSE names.user
-				END,
+				names.user,
 				events.target,
 				highlight(search, 6, :bold, :bold),
 				events.event
@@ -217,10 +214,11 @@ static void querySearch(struct Message *msg) {
 			WHERE contexts.network = :network
 				AND coalesce(contexts.query = :query, true)
 				AND search MATCH :search
-			ORDER BY events.time DESC, events.event DESC
+			ORDER BY time DESC, event DESC
 			LIMIT :limit
 		)
-		SELECT * FROM results ORDER BY context, time, event;
+		SELECT * FROM results
+		ORDER BY time, event;
 	);
 	dbPersist(&stmt, sql);
 	dbBindText(stmt, ":bold", "\2");
@@ -229,8 +227,6 @@ static void querySearch(struct Message *msg) {
 	dbBindText(stmt, ":network", network);
 	if (searchQuery == Public) {
 		dbBindInt(stmt, ":query", false);
-	} else {
-		dbBindNull(stmt, ":query");
 	}
 	dbBindText(stmt, ":search", msg->params[1]);
 
