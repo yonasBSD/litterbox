@@ -276,9 +276,10 @@ int main(int argc, char *argv[]) {
 	int n = 0;
 	struct Bind binds[argc];
 	const char *search = NULL;
+	const char *where = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "D:F:N:T:a:b:c:d:f:gh:l:n:pqst:u:v"))) {
+	while (0 < (opt = getopt(argc, argv, "D:F:N:T:a:b:c:d:f:gh:l:n:pqst:u:vw:"))) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
@@ -299,6 +300,7 @@ int main(int argc, char *argv[]) {
 			break; case 't': binds[n++] = Bind(":type", NULL, parseType(optarg));
 			break; case 'u': binds[n++] = Bind(":user", optarg, 0);
 			break; case 'v': verbose = true;
+			break; case 'w': where = optarg;
 			break; default:  return EX_USAGE;
 		}
 	}
@@ -347,15 +349,16 @@ int main(int argc, char *argv[]) {
 	if (search) {
 		snprintf(
 			sql, sizeof(sql),
-			"WITH results AS (%s AND %s %s) %s;",
-			Inner, Search, Limit, (group ? Group : Outer)
+			"WITH results AS (%s AND %s AND %s %s) %s;",
+			Inner, Search, (where ? where : "true"), Limit,
+			(group ? Group : Outer)
 		);
 		binds[n++] = Bind(":search", search, 0);
 	} else {
 		snprintf(
 			sql, sizeof(sql),
-			"WITH results AS (%s %s) %s;",
-			Inner, Limit, (group ? Group : Outer)
+			"WITH results AS (%s AND %s %s) %s;",
+			Inner, (where ? where : "true"), Limit, (group ? Group : Outer)
 		);
 	}
 

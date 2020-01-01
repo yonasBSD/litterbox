@@ -23,6 +23,7 @@
 .Op Fl n Ar nick
 .Op Fl t Ar type
 .Op Fl u Ar user
+.Op Fl w Ar expr
 .Op Ar search
 .Nm
 .Fl s
@@ -156,6 +157,14 @@ Match events from users with the username
 .
 .It Fl v
 Print the expanded SQL query being used to standard error.
+.
+.It Fl w Ar expr
+Add the SQL expression
+.Ar expr
+to the
+.Sy WHERE
+clause of the query.
+This option can only be used once.
 .
 .It Ar search
 Match events using full-text search.
