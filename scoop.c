@@ -14,6 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <err.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -335,9 +336,10 @@ int main(int argc, char *argv[]) {
 		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
 	}
 
+	int len;
 	char sql[4096];
 	if (search) {
-		snprintf(
+		len = snprintf(
 			sql, sizeof(sql),
 			"WITH results AS (%s AND %s AND %s %s) %s;",
 			Inner, Search, (where ? where : "true"), Limit,
@@ -345,12 +347,13 @@ int main(int argc, char *argv[]) {
 		);
 		binds[n++] = Bind(":search", search, 0);
 	} else {
-		snprintf(
+		len = snprintf(
 			sql, sizeof(sql),
 			"WITH results AS (%s AND %s %s) %s;",
 			Inner, (where ? where : "true"), Limit, (group ? Group : Outer)
 		);
 	}
+	assert((size_t)len < sizeof(sql));
 
 	sqlite3_stmt *stmt = dbPrepare(sql);
 	for (int i = 0; i < n; ++i) {
