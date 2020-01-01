@@ -13,6 +13,8 @@
 .Op Fl F Ar format
 .Op Fl N Ar network
 .Op Fl T Ar target
+.Op Fl a Ar time
+.Op Fl b Ar time
 .Op Fl c Ar context
 .Op Fl d Ar path
 .Op Fl f Ar format
@@ -73,6 +75,16 @@ or
 .Pc
 with
 .Ar target .
+.
+.It Fl a Ar time
+Match events which occurred after
+.Ar time
+in ISO8601 format.
+.
+.It Fl b Ar time
+Match events which occurred before
+.Ar time
+in ISO8601 format.
 .
 .It Fl c Ar context
 Match events from

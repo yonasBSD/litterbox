@@ -202,6 +202,8 @@ static const char *Inner = SQL(
 		AND coalesce(contexts.name = :context, true)
 		AND coalesce(contexts.query = :query, true)
 		AND coalesce(date(events.time) = date(:date), true)
+		AND coalesce(events.time >= datetime(:after), true)
+		AND coalesce(events.time <= datetime(:before), true)
 		AND coalesce(events.type = :type, true)
 		AND coalesce(names.nick = :nick, true)
 		AND coalesce(names.user = :user, true)
@@ -276,12 +278,14 @@ int main(int argc, char *argv[]) {
 	const char *search = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "D:F:N:T:c:d:f:gh:l:n:pqst:u:v"))) {
+	while (0 < (opt = getopt(argc, argv, "D:F:N:T:a:b:c:d:f:gh:l:n:pqst:u:v"))) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
 			break; case 'N': binds[n++] = Bind(":network", optarg, 0);
 			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
+			break; case 'a': binds[n++] = Bind(":after", optarg, 0);
+			break; case 'b': binds[n++] = Bind(":before", optarg, 0);
 			break; case 'c': binds[n++] = Bind(":context", optarg, 0);
 			break; case 'd': path = optarg;
 			break; case 'f': format = parseFormat(optarg);
