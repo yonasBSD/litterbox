@@ -1,4 +1,4 @@
-.Dd December 30, 2019
+.Dd January 3, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -19,8 +19,8 @@
 .Op Fl w Ar pass
 .
 .Nm
-.Fl i | m
 .Op Fl d Ar path
+.Fl i | m
 .
 .Sh DESCRIPTION
 The
@@ -28,20 +28,33 @@ The
 daemon logs IRC activity to a database
 which may be queried with
 .Xr scoop 1 .
+It connects to IRC over TLS.
+Messages, notices, joins, parts, quits, kicks,
+nick changes and topic changes
+are recorded in the database.
+The contents of messages are indexed for full-text search.
+.
+.Pp
+The database must first be initialized with
+.Fl i .
+If the database format has changed,
+an existing database can be migrated with
+.Fl m .
 .
 .Pp
 The arguments are as follows:
 .
 .Bl -tag -width "-h host"
 .It Fl Q
-Enable public search query interface.
+Enable the public search query interface.
 This allows anyone to perform searches
 in private messages to
 .Nm .
-Search results are limited
-to channels on the current network.
+Search results are limited to channels
+on the current network.
 .
 .Pp
+Searches use the full-text search index.
 The searchable columns are
 .Li channel ,
 .Li nick ,
@@ -49,15 +62,13 @@ The searchable columns are
 .Li target ,
 .Li message .
 For search query syntax, see
-.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
+.Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .
 .It Fl d Ar path
 Set the path to the database file.
-The database must be initialized with
-.Fl i .
-See
-.Sx FILES
-for the default path.
+The possible default paths
+are documented in
+.Sx FILES .
 .
 .It Fl h Ar host
 Connect to
@@ -71,15 +82,16 @@ Join the comma-separated list of channels
 .Ar join .
 .
 .It Fl l Ar limit
-Limit the number of results sent by the
+Limit the number of results
+in the search query interface
+enabled by
 .Fl Q
 or
-.Fl q
-search query interface.
+.Fl q .
 The default limit is 10.
 .
 .It Fl m
-Migrate the database to the latest version.
+Migrate the database to the latest format.
 .
 .It Fl n Ar nick
 Set the nickname to
@@ -93,15 +105,20 @@ Connect to
 The default port is 6697.
 .
 .It Fl q
-Enable private search query interface.
+Enable the private search query interface.
 This allows search queries in private messages to
 .Nm
-from itself,
-which is likely only useful when connected to
-.Xr pounce 1 .
+only from itself.
+This is intended for use with
+.Nm
+connected to
+.Xr pounce 1 ,
+allowing the user to message themselves
+to perform searches.
 Search results are limited to the current network.
 .
 .Pp
+Searches use the full-text search index.
 The searchable columns are
 .Li channel ,
 .Li query ,
@@ -110,11 +127,16 @@ The searchable columns are
 .Li target ,
 .Li message .
 For search query syntax, see
-.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
+.Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .
 .It Fl u Ar user
 Set the username to
 .Ar user .
+If connecting to
+.Xr pounce 1 ,
+the username should begin with hyphen
+.Ql -
+to prevent affecting its away status.
 The default username is the same as the nickname.
 .
 .It Fl v
@@ -139,7 +161,7 @@ followed by the colon-separated list of paths
 usually
 .Pa /usr/local/share:/usr/share .
 .It Pa ~/.local/share/litterbox/litterbox.sqlite
-The most likely path to the database file.
+The most likely default path to the database file.
 .El
 .
 .Sh SEE ALSO
