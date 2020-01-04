@@ -1,4 +1,4 @@
-.Dd December 23, 2019
+.Dd January 4, 2020
 .Dt UNSCOOP 1
 .Os
 .
@@ -9,15 +9,15 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl v
-.Op Fl C Ar context
 .Op Fl N Ar network
+.Op Fl c Ar context
 .Op Fl d Ar path
 .Op Fl f Ar format
 .Ar
 .
 .Nm
-.Fl D
 .Op Fl d Ar path
+.Fl D
 .
 .Sh DESCRIPTION
 The
@@ -34,16 +34,16 @@ should be run from the log directory root.
 .Pp
 The arguments are as follows:
 .Bl -tag -width Ds
-.It Fl C Ar context
-Override the context (channel or query) name
-of imported logs.
-.
 .It Fl D
 Delete duplicate events from overlapping imports.
 This operation requires SQLite version 3.25.0 or newer.
 .
 .It Fl N Ar network
 Override the network name of the imported logs.
+.
+.It Fl c Ar context
+Override the context (channel or query) name
+of imported logs.
 .
 .It Fl d Ar path
 Set the database path.

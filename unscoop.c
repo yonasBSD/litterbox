@@ -305,11 +305,11 @@ int main(int argc, char *argv[]) {
 	const struct Format *format = &Formats[0];
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "C:DN:d:f:v"))) {
+	while (0 < (opt = getopt(argc, argv, "DN:c:d:f:v"))) {
 		switch (opt) {
-			break; case 'C': context = optarg;
 			break; case 'D': dedup = true;
 			break; case 'N': network = optarg;
+			break; case 'c': context = optarg;
 			break; case 'd': path = optarg;
 			break; case 'f': format = formatParse(optarg);
 			break; case 'v': verbose = true;
