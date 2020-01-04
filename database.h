@@ -87,6 +87,7 @@ static inline void dbOpen(char *path, int flags) {
 	if (error) errx(EX_NOINPUT, "%s: %s", path, sqlite3_errmsg(db));
 
 	sqlite3_busy_timeout(db, 1000);
+	dbExec(SQL(PRAGMA journal_mode = WAL;));
 	dbExec(SQL(PRAGMA foreign_keys = true;));
 }
 
