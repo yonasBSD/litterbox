@@ -1,4 +1,4 @@
-.Dd January 1, 2020
+.Dd January 4, 2020
 .Dt SCOOP 1
 .Os
 .
@@ -33,7 +33,15 @@ The
 .Nm
 utility queries the
 .Xr litterbox 1
-IRC log database.
+IRC log database,
+matching events on the intersection
+of the criteria specified in arguments.
+With no arguments,
+all events in the database are matched.
+Events are output in order
+from oldest to newest.
+.
+.Pp
 If standard output is a terminal,
 colored output is piped to
 .Ev PAGER
@@ -57,13 +65,13 @@ Format timestamps using the
 .Ar format
 string,
 similar to
-.Xr strftime 3 .
+.Xr strftime 3 ,
+see
+.Aq Lk https://www.sqlite.org/lang_datefunc.html .
 The default format is ISO8601.
-See
-.Lk https://www.sqlite.org/lang_datefunc.html
 .
 .It Fl N Ar network
-Match events from contexts on
+Match events from
 .Ar network .
 .
 .It Fl T Ar target
@@ -74,18 +82,20 @@ of type
 or
 .Cm nick
 .Pc
-with
+with the target nickname
 .Ar target .
 .
 .It Fl a Ar time
 Match events which occurred after
-.Ar time
-in ISO8601 format.
+.Ar time ,
+of the format
+.Ar YYYY-MM-DD HH:MM:SS .
 .
 .It Fl b Ar time
 Match events which occurred before
-.Ar time
-in ISO8601 format.
+.Ar time ,
+of the format
+.Ar YYYY-MM-DD HH:MM:SS .
 .
 .It Fl c Ar context
 Match events from
@@ -94,8 +104,6 @@ either a channel or query name.
 .
 .It Fl d Ar path
 Set the database path.
-The database must have been initialized by
-.Xr litterbox 1 .
 The default path is as in
 .Xr litterbox 1 .
 .
@@ -104,6 +112,12 @@ Set the output format to one of
 .Cm plain ,
 .Cm color ,
 .Cm irc .
+The
+.Cm irc
+format outputs events
+as IRC protocol with
+.Sy server-time
+tags.
 The default format is
 .Cm color
 if standard output is a terminal,
@@ -111,7 +125,7 @@ if standard output is a terminal,
 otherwise.
 .
 .It Fl g
-Group events by context.
+Group events by network and channel or query name.
 .
 .It Fl h Ar host
 Match events from users with the hostname
@@ -177,16 +191,15 @@ The searchable columns are
 .Li target ,
 .Li message .
 For search query syntax, see
-.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax
+.Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .El
 .
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev PAGER
 The command to pipe terminal output to.
-If it is unset,
-.Ev PAGER=less
-is used.
+The default is
+.Ev PAGER=less .
 .El
 .
 .Sh SEE ALSO
