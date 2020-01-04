@@ -665,6 +665,7 @@ int main(int argc, char *argv[]) {
 
 	if (!host) errx(EX_USAGE, "host required");
 	set(&self, "*");
+	set(&network, host);
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
 
