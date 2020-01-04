@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <regex.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -200,6 +201,7 @@ static const char *Inner = SQL(
 		AND coalesce(names.user = :user, true)
 		AND coalesce(names.host = :host, true)
 		AND coalesce(events.target = :target, true)
+		AND coalesce(events.message REGEXP :regexp, true)
 );
 
 static const char *Search = SQL(search MATCH :search);
@@ -218,6 +220,50 @@ static const char *Group = SQL(
 	SELECT * FROM results
 	ORDER BY network, context, time, event
 );
+
+static void regexpFree(void *_regex) {
+	regex_t *regex = _regex;
+	regfree(regex);
+	free(regex);
+}
+
+static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
+	assert(n == 2);
+	if (sqlite3_value_type(args[0]) == SQLITE_NULL) {
+		sqlite3_result_null(ctx);
+		return;
+	}
+	if (sqlite3_value_type(args[1]) == SQLITE_NULL) {
+		sqlite3_result_int(ctx, false);
+		return;
+	}
+
+	regex_t *regex = sqlite3_get_auxdata(ctx, 0);
+	if (!regex) {
+		regex = malloc(sizeof(*regex));
+		if (!regex) {
+			sqlite3_result_error_nomem(ctx);
+			return;
+		}
+		sqlite3_set_auxdata(ctx, 0, regex, regexpFree);
+
+		int error = regcomp(
+			regex, (const char *)sqlite3_value_text(args[0]),
+			REG_EXTENDED | REG_NOSUB
+		);
+		if (error) {
+			char msg[256];
+			regerror(error, regex, msg, sizeof(msg));
+			sqlite3_result_error(ctx, msg, -1);
+			return;
+		}
+	}
+
+	int error = regexec(
+		regex, (const char *)sqlite3_value_text(args[1]), 0, NULL, 0
+	);
+	sqlite3_result_int(ctx, !error);
+}
 
 static const char *TypeNames[] = {
 #define X(id, name) [id] = name,
@@ -270,7 +316,8 @@ int main(int argc, char *argv[]) {
 	const char *where = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "D:F:N:T:a:b:c:d:f:gh:l:n:pqst:u:vw:"))) {
+	const char *Opts = "D:F:N:T:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
+	while (0 < (opt = getopt(argc, argv, Opts))) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
@@ -284,6 +331,7 @@ int main(int argc, char *argv[]) {
 			break; case 'g': group = true;
 			break; case 'h': binds[n++] = Bind(":host", optarg, 0);
 			break; case 'l': binds[n++] = Bind(":limit", optarg, 0);
+			break; case 'm': binds[n++] = Bind(":regexp", optarg, 0);
 			break; case 'n': binds[n++] = Bind(":nick", optarg, 0);
 			break; case 'p': binds[n++] = Bind(":query", NULL, 0);
 			break; case 'q': binds[n++] = Bind(":query", NULL, 1);
@@ -335,6 +383,11 @@ int main(int argc, char *argv[]) {
 	if (dbVersion() != DatabaseVersion) {
 		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
 	}
+	sqlite3_create_function(
+		db, "regexp", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL,
+		regexp, NULL, NULL
+	);
+
 
 	int len;
 	char sql[4096];
