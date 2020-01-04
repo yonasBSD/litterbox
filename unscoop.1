@@ -22,14 +22,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility imports IRC logs into the
+utility imports IRC client logs into the
 .Xr litterbox 1
 database.
-The network and context (channel or query) names
-are inferred from the input file paths,
-so
+The network and channel or query names
+can be inferred from file paths,
+so it is best to run
 .Nm
-should be run from the log directory root.
+from the log directory root
+or use absolute paths.
 .
 .Pp
 The arguments are as follows:
@@ -42,48 +43,54 @@ This operation requires SQLite version 3.25.0 or newer.
 Override the network name of the imported logs.
 .
 .It Fl c Ar context
-Override the context (channel or query) name
-of imported logs.
+Override the channel or query name
+of the imported logs.
+Names beginning with
+.Ql #
+or
+.Ql &
+are assumed to be channels.
 .
 .It Fl d Ar path
-Set the database path.
-The database must have been initialized by
+Set the database path,
+which must have been initialized by
 .Xr litterbox 1 .
 The default path is as in
 .Xr litterbox 1 .
 .
 .It Fl f Ar format
-Set the input log format.
-The default format is
-.Cm generic .
+Set the input log format to one of
+.Cm catgirl ,
+.Cm generic ,
+.Cm irc ,
+.Cm textual .
+.
 .Pp
-The following formats are supported:
-.Bl -tag -width Ds
-.It Cm catgirl
-Logs from the catgirl IRC client.
-.It Cm generic
-Matches paths of the form
+The default format is
+.Cm generic ,
+which matches paths of the form
 .Pa network/context/*
-and messages of the following forms:
+and events of the following forms:
 .Bd -literal -offset indent
 [timestamp] <nick> privmsg
 [timestamp] -nick- notice
 [timestamp] * nick action
 .Ed
-.It Cm irc
-IRC protocol messages tagged with the IRCv3.2
-.Sy server-time
-extension.
-Network and context must be set with
+.
+.Pp
+The
+.Cm irc
+format matches IRC protocol messages tagged with
+.Sy server-time .
+The network and context must be set with
 .Fl N
 and
-.Fl C .
-.It Cm textual
-Logs from the Textual IRC client.
-.El
+.Fl c .
 .
 .It Fl v
-Log SQL to standard error.
+Print SQL
+.Sy INSERT
+statements on standard error.
 .El
 .
 .Sh EXAMPLES
@@ -94,8 +101,7 @@ find Textual -type f -name '*.txt' -not -path '*/Console/*' -print0 \e
 .Ed
 .
 .Sh SEE ALSO
-.Xr litterbox 1 ,
-.Xr scoop 1
+.Xr litterbox 1
 .
 .Sh AUTHORS
 .An June Bug Aq Mt june@causal.agency
