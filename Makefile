@@ -13,20 +13,25 @@ MANS = ${BINS:=.1}
 
 -include config.mk
 
+OBJS_litterbox = litterbox.o config.o
+
 dev: tags all
 
 all: ${BINS}
 
-${BINS:=.o}: database.h
+litterbox: ${OBJS_litterbox}
+	${CC} ${LDFLAGS} ${OBJS_$@} ${LDLIBS} ${LDLIBS_$@} -o $@
 
 .o:
 	${CC} ${LDFLAGS} $< ${LDLIBS} ${LDLIBS_$@} -o $@
+
+${BINS:=.o}: database.h
 
 tags: *.c *.h
 	ctags -w *.c *.h
 
 clean:
-	rm -f tags ${BINS} ${BINS:=.o}
+	rm -f tags ${BINS} ${OBJS_litterbox} ${BINS:=.o}
 
 install: ${BINS} ${MANS}
 	install -d ${PREFIX}/bin ${MANDIR}/man1

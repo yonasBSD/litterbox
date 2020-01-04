@@ -18,6 +18,7 @@
 .Op Fl p Ar port
 .Op Fl u Ar user
 .Op Fl w Ar pass
+.Op Ar config ...
 .
 .Nm
 .Op Fl d Ar path
@@ -43,16 +44,26 @@ an existing database can be migrated with
 .Fl m .
 .
 .Pp
+Options can be loaded from
+files listed on the command line.
+Each option is placed on a line,
+and lines beginning with
+.Ql #
+are ignored.
+The options are listed below
+following their corresponding flags.
+.
+.Pp
 The arguments are as follows:
 .
 .Bl -tag -width "-h host"
-.It Fl N Ar network
+.It Fl N Ar name , Cm network = Ar name
 Set the network name to be used
 if the server does not send
 .Sy RPL_ISUPPORT NETWORK .
 The default is the server hostname.
 .
-.It Fl Q
+.It Fl Q , Cm public-query
 Enable the public search query interface.
 This allows anyone to perform searches
 in private messages to
@@ -71,24 +82,24 @@ The searchable columns are
 For search query syntax, see
 .Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .
-.It Fl d Ar path
+.It Fl d Ar path , Cm database = Ar path
 Set the path to the database file.
 The possible default paths
 are documented in
 .Sx FILES .
 .
-.It Fl h Ar host
+.It Fl h Ar host , Cm host = Ar host
 Connect to
 .Ar host .
 .
 .It Fl i
 Initialize the database.
 .
-.It Fl j Ar join
+.It Fl j Ar chan , Cm join = Ar chan
 Join the comma-separated list of channels
-.Ar join .
+.Ar chan .
 .
-.It Fl l Ar limit
+.It Fl l Ar limit , Cm limit = Ar limit
 Limit the number of results
 in the search query interface
 enabled by
@@ -100,18 +111,18 @@ The default limit is 10.
 .It Fl m
 Migrate the database to the latest format.
 .
-.It Fl n Ar nick
+.It Fl n Ar nick , Cm nick = Ar nick
 Set the nickname to
 .Ar nick .
 The default nickname is
 .Dq litterbox .
 .
-.It Fl p Ar port
+.It Fl p Ar port , Cm port = Ar port
 Connect to
 .Ar port .
 The default port is 6697.
 .
-.It Fl q
+.It Fl q , Cm private-query
 Enable the private search query interface.
 This allows search queries in private messages to
 .Nm
@@ -136,7 +147,7 @@ The searchable columns are
 For search query syntax, see
 .Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .
-.It Fl u Ar user
+.It Fl u Ar user , Cm user = Ar user
 Set the username to
 .Ar user .
 If connecting to
@@ -146,12 +157,12 @@ the username should begin with hyphen
 to prevent affecting its away status.
 The default username is the same as the nickname.
 .
-.It Fl v
+.It Fl v , Cm verbose
 Write sent and received IRC messages
 as well as SQL INSERT statements
 to standard error.
 .
-.It Fl w Ar pass
+.It Fl w Ar pass , Cm pass = Ar pass
 Log in with the server password
 .Ar pass .
 .El
@@ -170,6 +181,20 @@ usually
 .It Pa ~/.local/share/litterbox/litterbox.sqlite
 The most likely default path to the database file.
 .El
+.
+.Sh EXAMPLES
+Configuration on the command line:
+.Bd -literal -offset indent
+litterbox -Q -h irc.example.org -j '#example'
+.Ed
+.
+.Pp
+Configuration in a file:
+.Bd -literal -offset indent
+host = irc.example.org
+join = #example
+public-query
+.Ed
 .
 .Sh SEE ALSO
 .Xr scoop 1 ,

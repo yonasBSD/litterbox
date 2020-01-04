@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <getopt.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -26,6 +27,11 @@
 #include <unistd.h>
 
 #include "database.h"
+
+int getopt_config(
+	int argc, char *const *argv, const char *optstring,
+	const struct option *longopts, int *longindex
+);
 
 static struct tls *client;
 
@@ -624,8 +630,26 @@ int main(int argc, char *argv[]) {
 	const char *user = NULL;
 	const char *pass = NULL;
 
+	const char *Opts = "!N:Qd:h:ij:l:mn:p:qu:vw:";
+	const struct option LongOpts[] = {
+		{ "insecure", no_argument, NULL, '!' },
+		{ "network", required_argument, NULL, 'N' },
+		{ "public-query", no_argument, NULL, 'Q' },
+		{ "database", required_argument, NULL, 'd' },
+		{ "host", required_argument, NULL, 'h' },
+		{ "join", required_argument, NULL, 'j' },
+		{ "limit", required_argument, NULL, 'l' },
+		{ "nick", required_argument, NULL, 'n' },
+		{ "port", required_argument, NULL, 'p' },
+		{ "private-query", no_argument, NULL, 'q' },
+		{ "user", required_argument, NULL, 'u' },
+		{ "verbose", no_argument, NULL, 'v' },
+		{ "pass", required_argument, NULL, 'w' },
+		{0},
+	};
+
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "!N:Qd:h:ij:l:mn:p:qu:vw:"))) {
+	while (0 < (opt = getopt_config(argc, argv, Opts, LongOpts, NULL))) {
 		switch (opt) {
 			break; case '!': insecure = true;
 			break; case 'N': defaultNetwork = optarg;
