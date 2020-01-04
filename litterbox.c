@@ -618,15 +618,17 @@ int main(int argc, char *argv[]) {
 	bool insecure = false;
 	const char *host = NULL;
 	const char *port = "6697";
+	const char *defaultNetwork = NULL;
 
 	const char *nick = "litterbox";
 	const char *user = NULL;
 	const char *pass = NULL;
 
 	int opt;
-	while (0 < (opt = getopt(argc, argv, "!Qd:h:ij:l:mn:p:qu:vw:"))) {
+	while (0 < (opt = getopt(argc, argv, "!N:Qd:h:ij:l:mn:p:qu:vw:"))) {
 		switch (opt) {
 			break; case '!': insecure = true;
+			break; case 'N': defaultNetwork = optarg;
 			break; case 'Q': searchQuery = Public;
 			break; case 'd': path = optarg;
 			break; case 'h': host = optarg;
@@ -665,7 +667,7 @@ int main(int argc, char *argv[]) {
 
 	if (!host) errx(EX_USAGE, "host required");
 	set(&self, "*");
-	set(&network, host);
+	set(&network, (defaultNetwork ? defaultNetwork : host));
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
 

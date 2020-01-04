@@ -1,4 +1,4 @@
-.Dd January 3, 2020
+.Dd January 4, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -9,6 +9,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl Qqv
+.Op Fl N Ar network
 .Op Fl d Ar path
 .Op Fl h Ar host
 .Op Fl j Ar join
@@ -45,6 +46,12 @@ an existing database can be migrated with
 The arguments are as follows:
 .
 .Bl -tag -width "-h host"
+.It Fl N Ar network
+Set the network name to be used
+if the server does not send
+.Sy RPL_ISUPPORT NETWORK .
+The default is the server hostname.
+.
 .It Fl Q
 Enable the public search query interface.
 This allows anyone to perform searches
