@@ -1,4 +1,4 @@
-.Dd January 4, 2020
+.Dd January 11, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -46,6 +46,12 @@ an existing database can be migrated with
 .Pp
 Options can be loaded from
 files listed on the command line.
+Files are searched for in
+.Pa $XDG_CONFIG_DIRS/litterbox
+unless the path starts with
+.Ql /
+or
+.Ql \&. .
 Each option is placed on a line,
 and lines beginning with
 .Ql #
@@ -169,6 +175,16 @@ Log in with the server password
 .
 .Sh FILES
 .Bl -tag -width Ds
+.It Pa $XDG_CONFIG_DIRS/litterbox
+Configuration files are searched for first in
+.Ev $XDG_CONFIG_HOME ,
+usually
+.Pa ~/.config ,
+followed by the colon-separated list of paths
+.Ev $XDG_CONFIG_DIRS ,
+usually
+.Pa /etc/xdg .
+.
 .It Pa $XDG_DATA_DIRS/litterbox/litterbox.sqlite
 The database file is searched for first in
 .Ev $XDG_DATA_HOME ,

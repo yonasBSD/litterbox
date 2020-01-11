@@ -15,10 +15,50 @@
  */
 
 #include <err.h>
+#include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define CONFIG_DIR "litterbox"
+
+static FILE *find(const char *path, const char *mode) {
+	if (path[0] == '/' || path[0] == '.') goto local;
+
+	const char *home = getenv("HOME");
+	const char *configHome = getenv("XDG_CONFIG_HOME");
+	const char *configDirs = getenv("XDG_CONFIG_DIRS");
+
+	char buf[PATH_MAX];
+	if (configHome) {
+		snprintf(buf, sizeof(buf), "%s/" CONFIG_DIR "/%s", configHome, path);
+	} else {
+		if (!home) goto local;
+		snprintf(buf, sizeof(buf), "%s/.config/" CONFIG_DIR "/%s", home, path);
+	}
+	FILE *file = fopen(buf, mode);
+	if (file) return file;
+	if (errno != ENOENT) return NULL;
+
+	if (!configDirs) configDirs = "/etc/xdg";
+	while (*configDirs) {
+		size_t len = strcspn(configDirs, ":");
+		snprintf(
+			buf, sizeof(buf), "%.*s/" CONFIG_DIR "/%s",
+			(int)len, configDirs, path
+		);
+		file = fopen(buf, mode);
+		if (file) return file;
+		if (errno != ENOENT) return NULL;
+		configDirs += len;
+		if (*configDirs) configDirs++;
+	}
+
+local:
+	return fopen(path, mode);
+}
 
 #define WS "\t "
 
@@ -51,7 +91,7 @@ int getopt_config(
 			if (optind < argc) {
 				num = 0;
 				path = argv[optind++];
-				file = fopen(path, "r");
+				file = find(path, "r");
 				if (!file) {
 					warn("%s", path);
 					return clean('?');
