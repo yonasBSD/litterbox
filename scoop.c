@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
 		close(rw[1]);
 	}
 
-	dbFind(path, SQLITE_OPEN_READONLY);
+	dbFind(path, SQLITE_OPEN_READWRITE);
 	if (dbVersion() != DatabaseVersion) {
 		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
 	}
