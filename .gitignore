@@ -1,5 +1,5 @@
 *.o
-litterbox
-scoop
+/litterbox
+/scoop
+/unscoop
 tags
-unscoop

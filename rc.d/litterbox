@@ -1,0 +1,51 @@
+#!/bin/sh
+
+# PROVIDE: litterbox
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name='litterbox'
+rcvar='litterbox_enable'
+
+load_rc_config "${name}"
+
+: ${litterbox_enable:='NO'}
+
+command='/usr/sbin/daemon'
+pidprefix="/var/run/${name}"
+pidfile="${pidprefix}.pid"
+
+child_command='/usr/local/bin/litterbox'
+
+if [ -n "$2" ]; then
+	profile=$2
+	if [ -n "${litterbox_profiles}" ]; then
+		pidfile="${pidprefix}.${profile}.pid"
+		eval litterbox_enable="\${litterbox_${profile}_enable:-${litterbox_enable}}"
+		eval litterbox_flags="\${litterbox_${profile}_flags:-${litterbox_flags}}"
+		eval litterbox_user="\${litterbox_${profile}_user:-${litterbox_user}}"
+		eval litterbox_env="\${litterbox_${profile}_env:-${litterbox_env}}"
+	else
+		echo "$0: extra argument ignored"
+	fi
+else
+	if [ -n "${litterbox_profiles}" -a -n "$1" ]; then
+		for profile in ${litterbox_profiles}; do
+			echo "===> ${name} profile: ${profile}"
+			/usr/local/etc/rc.d/${name} "$1" "${profile}" || exit "$?"
+		done
+		exit
+	fi
+fi
+
+child_flags=$litterbox_flags
+child_user=$litterbox_user
+unset litterbox_flags litterbox_user
+command_args="\
+	-r -P ${pidfile} -T ${name}${profile:+/${profile}} \
+	${child_user:+-u ${child_user}} \
+	-- ${child_command} ${child_flags}"
+
+run_rc_command "$1"
