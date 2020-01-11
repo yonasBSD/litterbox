@@ -719,6 +719,7 @@ int main(int argc, char *argv[]) {
 
 	if (pass) format("PASS :%s\r\n", pass);
 	format("CAP REQ :server-time\r\n");
+	format("CAP REQ :causal.agency/passive\r\n");
 	format("NICK :%s\r\nUSER %s 0 * :Litterbox\r\n", nick, user);
 
 	signal(SIGINT, quit);
