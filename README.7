@@ -1,0 +1,63 @@
+.Dd January 11, 2020
+.Dt README 7
+.Os "Causal Agency"
+.
+.Sh NAME
+.Nm litterbox
+.Nd IRC logger
+.
+.Sh DESCRIPTION
+.Nm
+is a TLS-only IRC logger.
+It logs events from IRC in a SQLite database,
+indexing messages for full-text search.
+It is intended for use with
+the IRC bouncer
+.Xr pounce 1 ,
+but can also be used independently
+as a logging bot.
+.
+.Pp
+.Nm
+requires LibreSSL
+.Pq Fl ltls
+and SQLite
+.Pq Fl lsqlite3 ,
+and targets
+.Fx .
+It can also be built on Darwin.
+.
+.Sh FILES
+.Bl -tag -width "litterbox.c" -compact
+.It Pa database.h
+database functions and schema
+.It Pa litterbox.c
+IRC logging
+.It Pa scoop.c
+query building and output formatting
+.It Pa unscoop.c
+log file processing
+.It Pa config.c
+.Xr getopt_long 3 Ns -integrated
+configuration parsing
+.It Pa rc.d/
+.Fx
+.Xr rc 8
+scripts
+.El
+.
+.Sh CONTRIBUTING
+The upstream URL of this project is
+.Aq Lk https://git.causal.agency/litterbox .
+I'm happy to receive contributions in any form at
+.Aq Mt june@causal.agency .
+For sending patches by email, see
+.Aq Lk https://git-send-email.io .
+.
+.Sh SEE ALSO
+.Xr litterbox 1 ,
+.Xr scoop 1 ,
+.Xr unscoop 1
+.
+.Pp
+.Lk https://git.causal.agency/pounce "pounce"
