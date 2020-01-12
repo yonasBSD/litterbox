@@ -286,7 +286,7 @@ static void dedupEvents(sqlite3 *db) {
 		WITH potentials (event, diff) AS (
 			SELECT event, event - first_value(event) OVER matching
 			FROM events JOIN names USING (name)
-			WINDOW matching (
+			WINDOW matching AS (
 				PARTITION BY time, type, context, nick, target, message
 				ORDER BY event
 			)
