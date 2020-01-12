@@ -1,4 +1,4 @@
-.Dd January 11, 2020
+.Dd January 12, 2020
 .Dt README 7
 .Os "Causal Agency"
 .
@@ -24,8 +24,14 @@ requires LibreSSL
 and SQLite
 .Pq Fl lsqlite3 ,
 and targets
-.Fx .
-It can also be built on Darwin.
+.Fx
+and Darwin.
+To build on GNU/Linux,
+copy
+.Pa Linux.mk
+to
+.Pa config.mk
+and modify as needed.
 .
 .Sh FILES
 .Bl -tag -width "litterbox.c" -compact
