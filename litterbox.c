@@ -126,8 +126,28 @@ static void set(char **field, const char *value) {
 typedef void Handler(struct Message *msg);
 
 static void handleCap(struct Message *msg) {
+	require(msg, false, 3);
+	if (strcmp(msg->params[2], "sasl")) return;
+	if (!strcmp(msg->params[1], "ACK")) {
+		format("AUTHENTICATE EXTERNAL\r\n");
+	} else if (!strcmp(msg->params[1], "NAK")) {
+		errx(EX_CONFIG, "server does not support SASL");
+	}
+}
+
+static void handleAuthenticate(struct Message *msg) {
+	(void)msg;
+	format("AUTHENTICATE +\r\n");
+}
+
+static void handleReplyLoggedIn(struct Message *msg) {
 	(void)msg;
 	format("CAP END\r\n");
+}
+
+static void handleErrorSASLFail(struct Message *msg) {
+	require(msg, false, 2);
+	errx(EX_CONFIG, "%s", msg->params[1]);
 }
 
 static void handleReplyWelcome(struct Message *msg) {
@@ -571,6 +591,11 @@ static const struct Handler {
 	{ "372", false, handleReplyMOTD },
 	{ "375", false, handleReplyMOTDStart },
 	{ "376", true, handleReplyEndOfMOTD },
+	{ "900", false, handleReplyLoggedIn },
+	{ "904", false, handleErrorSASLFail },
+	{ "905", false, handleErrorSASLFail },
+	{ "906", false, handleErrorSASLFail },
+	{ "AUTHENTICATE", false, handleAuthenticate },
 	{ "CAP", false, handleCap },
 	{ "ERROR", false, handleError },
 	{ "JOIN", true, handleJoin },
@@ -622,6 +647,8 @@ int main(int argc, char *argv[]) {
 	bool migrate = false;
 
 	bool insecure = false;
+	const char *cert = NULL;
+	const char *priv = NULL;
 	const char *host = NULL;
 	const char *port = "6697";
 	const char *defaultNetwork = NULL;
@@ -630,14 +657,16 @@ int main(int argc, char *argv[]) {
 	const char *user = NULL;
 	const char *pass = NULL;
 
-	const char *Opts = "!N:Qd:h:ij:l:mn:p:qu:vw:";
+	const char *Opts = "!N:Qc:d:h:ij:k:l:mn:p:qu:vw:";
 	const struct option LongOpts[] = {
 		{ "insecure", no_argument, NULL, '!' },
 		{ "network", required_argument, NULL, 'N' },
 		{ "public-query", no_argument, NULL, 'Q' },
+		{ "cert", required_argument, NULL, 'c' },
 		{ "database", required_argument, NULL, 'd' },
 		{ "host", required_argument, NULL, 'h' },
 		{ "join", required_argument, NULL, 'j' },
+		{ "priv", required_argument, NULL, 'k' },
 		{ "limit", required_argument, NULL, 'l' },
 		{ "nick", required_argument, NULL, 'n' },
 		{ "port", required_argument, NULL, 'p' },
@@ -654,10 +683,12 @@ int main(int argc, char *argv[]) {
 			break; case '!': insecure = true;
 			break; case 'N': defaultNetwork = optarg;
 			break; case 'Q': searchQuery = Public;
+			break; case 'c': cert = optarg;
 			break; case 'd': path = optarg;
 			break; case 'h': host = optarg;
 			break; case 'i': init = true;
 			break; case 'j': join = optarg;
+			break; case 'k': priv = optarg;
 			break; case 'l': searchLimit = strtol(optarg, NULL, 0);
 			break; case 'm': migrate = true;
 			break; case 'n': nick = optarg;
@@ -710,6 +741,16 @@ int main(int argc, char *argv[]) {
 		tls_config_insecure_noverifyname(config);
 	}
 
+	if (cert) {
+		error = tls_config_set_keypair_file(config, cert, (priv ? priv : cert));
+		if (error) {
+			errx(
+				EX_SOFTWARE, "tls_config_set_keypair_file: %s",
+				tls_config_error(config)
+			);
+		}
+	}
+
 	error = tls_configure(client, config);
 	if (error) errx(EX_SOFTWARE, "tls_configure: %s", tls_error(client));
 	tls_config_free(config);
@@ -718,8 +759,10 @@ int main(int argc, char *argv[]) {
 	if (error) errx(EX_UNAVAILABLE, "tls_connect: %s", tls_error(client));
 
 	if (pass) format("PASS :%s\r\n", pass);
+	if (cert) format("CAP REQ :sasl\r\n");
 	format("CAP REQ :server-time\r\n");
 	format("CAP REQ :causal.agency/passive\r\n");
+	if (!cert) format("CAP END\r\n");
 	format("NICK :%s\r\nUSER %s 0 * :Litterbox\r\n", nick, user);
 
 	signal(SIGINT, quit);
