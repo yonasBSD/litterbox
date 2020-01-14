@@ -31,7 +31,7 @@
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 
-enum { DatabaseVersion = 0 };
+enum { DatabaseVersion = 1 };
 
 #define ENUM_TYPE \
 	X(Privmsg, "privmsg") \
@@ -285,7 +285,8 @@ static const char *InitSQL = SQL(
 		network, channel, query, nick, user, target, message,
 		content = text,
 		content_rowid = event,
-		tokenize = 'porter'
+		tokenize = 'porter',
+		columnsize = 0
 	);
 
 	CREATE TRIGGER eventsInsert AFTER INSERT ON events BEGIN
@@ -300,6 +301,8 @@ static const char *InitSQL = SQL(
 		) SELECT 'delete', * FROM text WHERE event = old.event;
 	END;
 
+	PRAGMA user_version = 1;
+
 	COMMIT TRANSACTION;
 );
 
@@ -308,7 +311,23 @@ static inline void dbInit(void) {
 }
 
 static const char *MigrationSQL[] = {
-	NULL,
+	// Added columnsize = 0 option.
+	SQL(
+		BEGIN TRANSACTION;
+		DROP TABLE search;
+		CREATE VIRTUAL TABLE search USING fts5 (
+			network, channel, query, nick, user, target, message,
+			content = text,
+			content_rowid = event,
+			tokenize = 'porter',
+			columnsize = 0
+		);
+		INSERT INTO search (
+			rowid, network, channel, query, nick, user, target, message
+		) SELECT * FROM text;
+		PRAGMA user_version = 1;
+		COMMIT TRANSACTION;
+	),
 };
 
 static inline void dbMigrate(void) {
