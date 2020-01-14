@@ -645,6 +645,7 @@ int main(int argc, char *argv[]) {
 	char *path = NULL;
 	bool init = false;
 	bool migrate = false;
+	const char *backup = NULL;
 
 	bool insecure = false;
 	const char *cert = NULL;
@@ -657,7 +658,7 @@ int main(int argc, char *argv[]) {
 	const char *user = NULL;
 	const char *pass = NULL;
 
-	const char *Opts = "!N:Qc:d:h:ij:k:l:mn:p:qu:vw:";
+	const char *Opts = "!N:Qb:c:d:h:ij:k:l:mn:p:qu:vw:";
 	const struct option LongOpts[] = {
 		{ "insecure", no_argument, NULL, '!' },
 		{ "network", required_argument, NULL, 'N' },
@@ -683,6 +684,7 @@ int main(int argc, char *argv[]) {
 			break; case '!': insecure = true;
 			break; case 'N': defaultNetwork = optarg;
 			break; case 'Q': searchQuery = Public;
+			break; case 'b': backup = optarg;
 			break; case 'c': cert = optarg;
 			break; case 'd': path = optarg;
 			break; case 'h': host = optarg;
@@ -713,6 +715,10 @@ int main(int argc, char *argv[]) {
 	}
 	if (migrate) {
 		dbMigrate();
+		return EX_OK;
+	}
+	if (backup) {
+		dbBackup(backup);
 		return EX_OK;
 	}
 	if (dbVersion() != DatabaseVersion) {

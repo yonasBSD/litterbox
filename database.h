@@ -335,3 +335,13 @@ static inline void dbMigrate(void) {
 		dbExec(MigrationSQL[version]);
 	}
 }
+
+static inline void dbBackup(const char *path) {
+	if (sqlite3_libversion_number() < 3027000) {
+		errx(EX_CONFIG, "SQLite version 3.27.0 or newer required");
+	}
+	sqlite3_stmt *stmt = dbPrepare(SQL(VACUUM INTO :path;));
+	dbBindText(stmt, ":path", path);
+	dbRun(stmt);
+	sqlite3_finalize(stmt);
+}

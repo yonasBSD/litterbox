@@ -1,4 +1,4 @@
-.Dd January 12, 2020
+.Dd January 14, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -25,6 +25,10 @@
 .Nm
 .Op Fl d Ar path
 .Fl i | m
+.
+.Nm
+.Op Fl d Ar path
+.Fl b Ar path
 .
 .Sh DESCRIPTION
 The
@@ -89,6 +93,11 @@ The searchable columns are
 .Li message .
 For search query syntax, see
 .Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
+.
+.It Fl b Ar path
+Perform a live database backup to
+.Ar path .
+This operation requires SQLite version 3.27.0 or newer.
 .
 .It Fl c Ar path , Cm cert = Ar path
 Load the TLS client certificate from
