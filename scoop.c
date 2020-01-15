@@ -123,8 +123,10 @@ static const char *ansi(const char *str) {
 			}
 		}
 	}
-
+	fprintf(out, "\33[m");
 	fclose(out);
+
+	buf[sizeof(buf) - 1] = '\0';
 	return buf;
 }
 
