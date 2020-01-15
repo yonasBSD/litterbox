@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <regex.h>
 #include <stdbool.h>
@@ -84,6 +85,49 @@ static int color(const char *user) {
 	return Colors[hash(user) % ARRAY_LEN(Colors)];
 }
 
+static const int ANSI[100] = {
+	97, 30, 34, 32, 91, 31, 35, 33,
+	93, 92, 36, 96, 94, 95, 90, 37,
+};
+
+static const char *ansi(const char *str) {
+	static char buf[1024];
+	FILE *out = fmemopen(buf, sizeof(buf), "w");
+	if (!out) err(EX_OSERR, "fmemopen");
+
+	int b = 0, i = 0, u = 0, r = 0;
+	for (;;) {
+		size_t len = strcspn(str, "\2\3\17\26\35\37");
+		fprintf(out, "%.*s", (int)len, str);
+		if (!str[len]) break;
+		str += len;
+		switch (*str++) {
+			break; case '\2':  fprintf(out, "\33[%dm", ((b ^= 1) ? 1 : 22));
+			break; case '\26': fprintf(out, "\33[%dm", ((r ^= 1) ? 7 : 27));
+			break; case '\35': fprintf(out, "\33[%dm", ((i ^= 1) ? 3 : 23));
+			break; case '\37': fprintf(out, "\33[%dm", ((u ^= 1) ? 4 : 24));
+			break; case '\17': fprintf(out, "\33[m"); b = i = u = r = 0;
+			break; case '\3': {
+				if (!isdigit(*str)) {
+					fprintf(out, "\33[39;49m");
+					break;
+				}
+				int fg = *str++ - '0';
+				if (isdigit(*str)) fg = fg * 10 + *str++ - '0';
+				fprintf(out, "\33[%dm", (ANSI[fg] ? ANSI[fg] : 39));
+				if (str[0] != ',' || !isdigit(str[1])) break;
+				str++;
+				int bg = *str++ - '0';
+				if (isdigit(*str)) bg = bg * 10 + *str++ - '0';
+				fprintf(out, "\33[%dm", (ANSI[bg] ? 10 + ANSI[bg] : 49));
+			}
+		}
+	}
+
+	fclose(out);
+	return buf;
+}
+
 static void formatColor(bool group, struct Event e) {
 	static char network[256];
 	static char context[256];
@@ -99,27 +143,27 @@ static void formatColor(bool group, struct Event e) {
 #define NICK "\33[%dm%s\33[m"
 	switch (e.type) {
 		break; case Privmsg: {
-			printf("<" NICK "> %s\n", color(e.user), e.nick, e.message);
+			printf("<" NICK "> %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Notice: {
-			printf("-" NICK "- %s\n", color(e.user), e.nick, e.message);
+			printf("-" NICK "- %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Action: {
-			printf("* " NICK " %s\n", color(e.user), e.nick, e.message);
+			printf("* " NICK " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Join: {
 			printf(NICK " joined\n", color(e.user), e.nick);
 		}
 		break; case Part: {
-			printf(NICK " parted: %s\n", color(e.user), e.nick, e.message);
+			printf(NICK " parted: %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Quit: {
-			printf(NICK " quit: %s\n", color(e.user), e.nick, e.message);
+			printf(NICK " quit: %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Kick: {
 			printf(
 				NICK " kicked %s: %s\n",
-				color(e.user), e.nick, e.target, e.message
+				color(e.user), e.nick, e.target, ansi(e.message)
 			);
 		}
 		break; case Nick: {
@@ -129,7 +173,10 @@ static void formatColor(bool group, struct Event e) {
 			);
 		}
 		break; case Topic: {
-			printf(NICK "set the topic: %s\n", color(e.user), e.nick, e.message);
+			printf(
+				NICK "set the topic: %s\n",
+				color(e.user), e.nick, ansi(e.message)
+			);
 		}
 	}
 #undef NICK
