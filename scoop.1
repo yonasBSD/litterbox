@@ -1,4 +1,4 @@
-.Dd January 4, 2020
+.Dd January 16, 2020
 .Dt SCOOP 1
 .Os
 .
@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl gpqv
+.Op Fl Lgpqv
 .Op Fl D Ar date
 .Op Fl F Ar format
 .Op Fl N Ar network
@@ -69,7 +69,10 @@ similar to
 .Xr strftime 3 ,
 see
 .Aq Lk https://www.sqlite.org/lang_datefunc.html .
-The default format is ISO8601.
+The default format is ISO 8601.
+.
+.It Fl L
+Output timestamps in local time.
 .
 .It Fl N Ar network
 Match events from

@@ -227,7 +227,18 @@ static const char *Inner = SQL(
 	SELECT
 		contexts.network,
 		contexts.name AS context,
-		strftime(coalesce(:format, '%Y-%m-%dT%H:%M:%SZ'), events.time) AS time,
+		CASE WHEN :local THEN
+			strftime(
+				coalesce(:format, '%Y-%m-%dT%H:%M:%S'),
+				events.time,
+				'localtime'
+			)
+		ELSE
+			strftime(
+				coalesce(:format, '%Y-%m-%dT%H:%M:%SZ'),
+				events.time
+			)
+		END AS time,
 		events.type,
 		names.nick,
 		names.user,
@@ -365,11 +376,12 @@ int main(int argc, char *argv[]) {
 	const char *where = NULL;
 
 	int opt;
-	const char *Opts = "D:F:N:T:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
+	const char *Opts = "D:F:LN:T:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
 	while (0 < (opt = getopt(argc, argv, Opts))) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
+			break; case 'L': binds[n++] = Bind(":local", NULL, 1);
 			break; case 'N': binds[n++] = Bind(":network", optarg, 0);
 			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
 			break; case 'a': binds[n++] = Bind(":after", optarg, 0);
