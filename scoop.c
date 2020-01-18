@@ -223,6 +223,50 @@ static void formatIRC(bool group, struct Event e) {
 	}
 }
 
+static void regexpFree(void *_regex) {
+	regex_t *regex = _regex;
+	regfree(regex);
+	free(regex);
+}
+
+static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
+	assert(n == 2);
+	if (sqlite3_value_type(args[0]) == SQLITE_NULL) {
+		sqlite3_result_null(ctx);
+		return;
+	}
+	if (sqlite3_value_type(args[1]) == SQLITE_NULL) {
+		sqlite3_result_int(ctx, false);
+		return;
+	}
+
+	regex_t *regex = sqlite3_get_auxdata(ctx, 0);
+	if (!regex) {
+		regex = malloc(sizeof(*regex));
+		if (!regex) {
+			sqlite3_result_error_nomem(ctx);
+			return;
+		}
+		sqlite3_set_auxdata(ctx, 0, regex, regexpFree);
+
+		int error = regcomp(
+			regex, (const char *)sqlite3_value_text(args[0]),
+			REG_EXTENDED | REG_NOSUB
+		);
+		if (error) {
+			char msg[256];
+			regerror(error, regex, msg, sizeof(msg));
+			sqlite3_result_error(ctx, msg, -1);
+			return;
+		}
+	}
+
+	int error = regexec(
+		regex, (const char *)sqlite3_value_text(args[1]), 0, NULL, 0
+	);
+	sqlite3_result_int(ctx, !error);
+}
+
 static const char *Inner = SQL(
 	SELECT
 		contexts.network,
@@ -280,50 +324,6 @@ static const char *Group = SQL(
 	SELECT * FROM results
 	ORDER BY network, context, time, event
 );
-
-static void regexpFree(void *_regex) {
-	regex_t *regex = _regex;
-	regfree(regex);
-	free(regex);
-}
-
-static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
-	assert(n == 2);
-	if (sqlite3_value_type(args[0]) == SQLITE_NULL) {
-		sqlite3_result_null(ctx);
-		return;
-	}
-	if (sqlite3_value_type(args[1]) == SQLITE_NULL) {
-		sqlite3_result_int(ctx, false);
-		return;
-	}
-
-	regex_t *regex = sqlite3_get_auxdata(ctx, 0);
-	if (!regex) {
-		regex = malloc(sizeof(*regex));
-		if (!regex) {
-			sqlite3_result_error_nomem(ctx);
-			return;
-		}
-		sqlite3_set_auxdata(ctx, 0, regex, regexpFree);
-
-		int error = regcomp(
-			regex, (const char *)sqlite3_value_text(args[0]),
-			REG_EXTENDED | REG_NOSUB
-		);
-		if (error) {
-			char msg[256];
-			regerror(error, regex, msg, sizeof(msg));
-			sqlite3_result_error(ctx, msg, -1);
-			return;
-		}
-	}
-
-	int error = regexec(
-		regex, (const char *)sqlite3_value_text(args[1]), 0, NULL, 0
-	);
-	sqlite3_result_int(ctx, !error);
-}
 
 static const char *TypeNames[] = {
 #define X(id, name) [id] = name,
@@ -406,40 +406,6 @@ int main(int argc, char *argv[]) {
 	}
 	if (optind < argc) search = argv[optind];
 
-	if (shell) {
-		dbFind(path, SQLITE_OPEN_READONLY);
-		path = strdup(sqlite3_db_filename(db, "main"));
-		if (!path) err(EX_OSERR, "strdup");
-		dbClose();
-		execlp("sqlite3", "sqlite3", path, NULL);
-		err(EX_UNAVAILABLE, "sqlite3");
-	}
-
-	if (tty) {
-		const char *pager = getenv("PAGER");
-		if (!pager) pager = "less";
-		setenv("LESS", "FRX", 0);
-
-		int rw[2];
-		int error = pipe(rw);
-		if (error) err(EX_OSERR, "pipe");
-
-		pid_t pid = fork();
-		if (pid < 0) err(EX_OSERR, "fork");
-
-		if (!pid) {
-			dup2(rw[0], STDIN_FILENO);
-			close(rw[0]);
-			close(rw[1]);
-			execlp(pager, pager, NULL);
-			err(EX_CONFIG, "%s", pager);
-		}
-
-		dup2(rw[1], STDOUT_FILENO);
-		close(rw[0]);
-		close(rw[1]);
-	}
-
 	dbFind(path, SQLITE_OPEN_READWRITE);
 	if (dbVersion() != DatabaseVersion) {
 		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
@@ -449,6 +415,13 @@ int main(int argc, char *argv[]) {
 		regexp, NULL, NULL
 	);
 
+	if (shell) {
+		path = strdup(sqlite3_db_filename(db, "main"));
+		if (!path) err(EX_OSERR, "strdup");
+		dbClose();
+		execlp("sqlite3", "sqlite3", path, NULL);
+		err(EX_UNAVAILABLE, "sqlite3");
+	}
 
 	int len;
 	char sql[4096];
@@ -492,6 +465,31 @@ int main(int argc, char *argv[]) {
 		if (!expand) errx(EX_SOFTWARE, "sqlite3_expanded_sql");
 		fprintf(stderr, "%s\n", expand);
 		sqlite3_free(expand);
+	}
+
+	if (tty) {
+		const char *pager = getenv("PAGER");
+		if (!pager) pager = "less";
+		setenv("LESS", "FRX", 0);
+
+		int rw[2];
+		int error = pipe(rw);
+		if (error) err(EX_OSERR, "pipe");
+
+		pid_t pid = fork();
+		if (pid < 0) err(EX_OSERR, "fork");
+
+		if (!pid) {
+			dup2(rw[0], STDIN_FILENO);
+			close(rw[0]);
+			close(rw[1]);
+			execlp(pager, pager, NULL);
+			err(EX_CONFIG, "%s", pager);
+		}
+
+		dup2(rw[1], STDOUT_FILENO);
+		close(rw[0]);
+		close(rw[1]);
 	}
 
 	int result;
