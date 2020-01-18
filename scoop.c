@@ -299,7 +299,7 @@ static const char *Inner = SQL(
 		AND coalesce(contexts.query = :query, true)
 		AND coalesce(date(events.time) = date(:date), true)
 		AND coalesce(events.time >= datetime(:after), true)
-		AND coalesce(events.time <= datetime(:before), true)
+		AND coalesce(events.time < datetime(:before), true)
 		AND coalesce(events.type = :type, true)
 		AND coalesce(names.nick = :nick, true)
 		AND coalesce(names.user = :user, true)
