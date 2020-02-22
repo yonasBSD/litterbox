@@ -272,11 +272,11 @@ static void querySearch(struct Message *msg) {
 		format("NOTICE %s :(%s) [%s] ", msg->nick, context, time);
 		switch (type) {
 			break; case Privmsg:
-				format("<\3%02d%s\3> %s\r\n", color(user), nick, message);
+				format("\3%d<%s>\3 %s\r\n", color(user), nick, message);
 			break; case Notice:
-				format("-\3%02d%s\3- %s\r\n", color(user), nick, message);
+				format("\3%d-%s-\3 %s\r\n", color(user), nick, message);
 			break; case Action:
-				format("* \3%02d%s\3 %s\r\n", color(user), nick, message);
+				format("\3%d* %s\3 %s\r\n", color(user), nick, message);
 			break; case Join:
 				format("\3%02d%s\3 joined\r\n", color(user), nick);
 			break; case Part:
