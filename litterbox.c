@@ -217,7 +217,7 @@ static void handleReplyEndOfMOTD(struct Message *msg) {
 }
 
 static int color(const char *user) {
-	return 2 + hash(user) % 14;
+	return 2 + hash(user) % 74;
 }
 
 static void querySearch(struct Message *msg) {
