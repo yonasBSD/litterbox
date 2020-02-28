@@ -31,7 +31,7 @@
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 
-enum { DatabaseVersion = 1 };
+enum { DatabaseVersion = 2 };
 
 #define ENUM_TYPE \
 	X(Privmsg, "privmsg") \
@@ -172,9 +172,10 @@ static inline void dbBindNull(sqlite3_stmt *stmt, const char *param) {
 	errx(EX_SOFTWARE, "sqlite3_bind_null: %s", sqlite3_errmsg(db));
 }
 
-static inline void dbBindInt(sqlite3_stmt *stmt, const char *param, int value) {
-	if (!sqlite3_bind_int(stmt, dbParam(stmt, param), value)) return;
-	errx(EX_SOFTWARE, "sqlite3_bind_int: %s", sqlite3_errmsg(db));
+static inline void
+dbBindInt(sqlite3_stmt *stmt, const char *param, sqlite3_int64 value) {
+	if (!sqlite3_bind_int64(stmt, dbParam(stmt, param), value)) return;
+	errx(EX_SOFTWARE, "sqlite3_bind_int64: %s", sqlite3_errmsg(db));
 }
 
 static inline void dbBindText5(
@@ -301,7 +302,14 @@ static const char *InitSQL = SQL(
 		) SELECT 'delete', * FROM text WHERE event = old.event;
 	END;
 
-	PRAGMA user_version = 1;
+	CREATE TABLE consumers (
+		host STRING NOT NULL,
+		port INTEGER NOT NULL,
+		pos INTEGER NOT NULL,
+		UNIQUE (host, port)
+	);
+
+	PRAGMA user_version = 2;
 
 	COMMIT TRANSACTION;
 );
@@ -326,6 +334,18 @@ static const char *MigrationSQL[] = {
 			rowid, network, channel, query, nick, user, target, message
 		) SELECT * FROM text;
 		PRAGMA user_version = 1;
+		COMMIT TRANSACTION;
+	),
+
+	SQL(
+		BEGIN TRANSACTION;
+		CREATE TABLE consumers (
+			host STRING NOT NULL,
+			port INTEGER NOT NULL,
+			pos INTEGER NOT NULL,
+			UNIQUE (host, port)
+		);
+		PRAGMA user_version = 2;
 		COMMIT TRANSACTION;
 	),
 };

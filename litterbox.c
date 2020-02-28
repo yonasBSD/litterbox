@@ -33,6 +33,8 @@ int getopt_config(
 	const struct option *longopts, int *longindex
 );
 
+static const char *host;
+static const char *port = "6697";
 static struct tls *client;
 
 static void clientWrite(const char *ptr, size_t len) {
@@ -58,6 +60,7 @@ static void format(const char *format, ...) {
 
 enum { ParamCap = 15 };
 struct Message {
+	size_t pos;
 	char *time;
 	char *nick;
 	char *user;
@@ -75,6 +78,9 @@ static struct Message parse(char *line) {
 			char *tag = strsep(&tags, ";");
 			char *key = strsep(&tag, "=");
 			if (!strcmp(key, "time")) msg.time = tag;
+			if (!strcmp(key, "causal.agency/pos")) {
+				msg.pos = strtoull(tag, NULL, 10);
+			}
 		}
 	}
 	if (line[0] == ':') {
@@ -614,6 +620,20 @@ static int compar(const void *cmd, const void *_handler) {
 	return strcmp(cmd, handler->cmd);
 }
 
+static void updateConsumer(size_t pos) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT INTO consumers (host, port, pos) VALUES (:host, :port, :pos)
+		ON CONFLICT (host, port) DO
+		UPDATE SET pos = :pos WHERE host = :host AND port = :port;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":host", host);
+	dbBindText(stmt, ":port", port);
+	dbBindInt(stmt, ":pos", pos);
+	dbRun(stmt);
+}
+
 static void handle(struct Message msg) {
 	if (!msg.cmd) return;
 	const struct Handler *handler = bsearch(
@@ -623,6 +643,7 @@ static void handle(struct Message msg) {
 	if (handler->transaction) {
 		dbExec(SQL(BEGIN TRANSACTION;));
 		handler->fn(&msg);
+		if (msg.pos) updateConsumer(msg.pos);
 		dbExec(SQL(COMMIT TRANSACTION;));
 	} else {
 		handler->fn(&msg);
@@ -650,8 +671,6 @@ int main(int argc, char *argv[]) {
 	bool insecure = false;
 	const char *cert = NULL;
 	const char *priv = NULL;
-	const char *host = NULL;
-	const char *port = "6697";
 	const char *defaultNetwork = NULL;
 
 	const char *nick = "litterbox";
@@ -764,10 +783,26 @@ int main(int argc, char *argv[]) {
 	error = tls_connect(client, host, port);
 	if (error) errx(EX_UNAVAILABLE, "tls_connect: %s", tls_error(client));
 
+	size_t consumerPos = 0;
+	sqlite3_stmt *stmt = dbPrepare(
+		SQL(SELECT pos FROM consumers WHERE host = :host AND port = :port;)
+	);
+	dbBindText(stmt, ":host", host);
+	dbBindText(stmt, ":port", port);
+	if (dbStep(stmt) == SQLITE_ROW) {
+		consumerPos = sqlite3_column_int64(stmt, 0);
+	}
+	sqlite3_finalize(stmt);
+
 	if (pass) format("PASS :%s\r\n", pass);
 	if (cert) format("CAP REQ :sasl\r\n");
 	format("CAP REQ :server-time\r\n");
 	format("CAP REQ :causal.agency/passive\r\n");
+	if (consumerPos) {
+		format("CAP REQ :causal.agency/consumer=%zu\r\n", consumerPos);
+	} else {
+		format("CAP REQ :causal.agency/consumer\r\n");
+	}
 	if (!cert) format("CAP END\r\n");
 	format("NICK :%s\r\nUSER %s 0 * :Litterbox\r\n", nick, user);
 

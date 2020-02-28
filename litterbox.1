@@ -1,4 +1,4 @@
-.Dd January 14, 2020
+.Dd February 28, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -322,6 +322,17 @@ daemon implements the following:
 .%U https://ircv3.net/specs/extensions/sasl-3.1.html
 .Re
 .El
+.
+.Ss Extensions
+The
+.Nm
+daemon can take advantage of the
+.Sy causal.agency/consumer
+and
+.Sy causal.agency/passive
+vendor-specific IRCv3 capabilities
+implemented by
+.Xr pounce 1 .
 .
 .Sh AUTHORS
 .An June Bug Aq Mt june@causal.agency
