@@ -146,46 +146,52 @@ static void formatColor(bool group, struct Event e) {
 	}
 	printf("[%s] ", e.time);
 
-#define NICK "\33[%dm%s\33[m"
+#define C "\33[%dm"
+#define O "\33[m"
 	switch (e.type) {
 		break; case Privmsg: {
-			printf("<" NICK "> %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(C "<%s>" O " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Notice: {
-			printf("-" NICK "- %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(C "-%s-" O " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Action: {
-			printf("* " NICK " %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(C "* %s" O " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Join: {
-			printf(NICK " joined\n", color(e.user), e.nick);
+			printf(C "%s" O " joined\n", color(e.user), e.nick);
 		}
 		break; case Part: {
-			printf(NICK " parted: %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(
+				C "%s" O " parted: %s\n", color(e.user), e.nick, ansi(e.message)
+			);
 		}
 		break; case Quit: {
-			printf(NICK " quit: %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(
+				C "%s" O " quit: %s\n", color(e.user), e.nick, ansi(e.message)
+			);
 		}
 		break; case Kick: {
 			printf(
-				NICK " kicked %s: %s\n",
+				C "%s" O " kicked %s: %s\n",
 				color(e.user), e.nick, e.target, ansi(e.message)
 			);
 		}
 		break; case Nick: {
 			printf(
-				NICK " changed nick to " NICK "\n",
+				C "%s" O " changed nick to " C "%s" O "\n",
 				color(e.user), e.nick, color(e.user), e.target
 			);
 		}
 		break; case Topic: {
 			printf(
-				NICK "set the topic: %s\n",
+				C "%s" O " set the topic: %s\n",
 				color(e.user), e.nick, ansi(e.message)
 			);
 		}
 	}
-#undef NICK
+#undef C
+#undef O
 }
 
 static void formatIRC(bool group, struct Event e) {
