@@ -1,4 +1,4 @@
-.Dd January 12, 2020
+.Dd March  2, 2020
 .Dt README 7
 .Os "Causal Agency"
 .
@@ -22,16 +22,27 @@ as a logging bot.
 requires LibreSSL
 .Pq Fl ltls
 and SQLite
-.Pq Fl lsqlite3 ,
-and targets
-.Fx
-and Darwin.
-To build on GNU/Linux,
-copy
-.Pa Linux.mk
-to
-.Pa config.mk
-and modify as needed.
+.Pq Fl lsqlite3 .
+It primarily targets
+.Fx ,
+as well as macOS and Linux.
+.
+.Bd -literal -offset indent
+\&./configure
+make all
+sudo make install PREFIX=/usr/local
+.Ed
+.
+.Pp
+If your system installs LibreSSL
+in a non-standard path, set
+.Ev PKG_CONFIG_PATH
+for
+.Nm ./configure .
+For example,
+.Bd -literal -offset indent
+PKG_CONFIG_PATH=/opt/libressl/lib/pkgconfig ./configure
+.Ed
 .
 .Sh FILES
 .Bl -tag -width "litterbox.c" -compact

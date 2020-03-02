@@ -28,6 +28,10 @@
 
 #include "database.h"
 
+#ifndef SQLITE3_BIN
+#define SQLITE3_BIN "sqlite3"
+#endif
+
 struct Event {
 	const char *network;
 	const char *context;
@@ -419,7 +423,7 @@ int main(int argc, char *argv[]) {
 		path = strdup(sqlite3_db_filename(db, "main"));
 		if (!path) err(EX_OSERR, "strdup");
 		dbClose();
-		execlp("sqlite3", "sqlite3", path, NULL);
+		execlp(SQLITE3_BIN, "sqlite3", path, NULL);
 		err(EX_UNAVAILABLE, "sqlite3");
 	}
 

@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+exec >config.mk
+
+case "$(uname)" in
+	(FreeBSD)
+		if ! pkg info -e libressl || ! pkg info -e sqlite3; then
+			echo 'LibreSSL & SQLite3 required' >&2
+			exit 1
+		fi
+		prefix=$(pkg query '%p' sqlite3)
+		cat <<-EOF
+		CFLAGS += -I${prefix}/include
+		CFLAGS += -D'SQLITE3_BIN="${prefix}/bin/sqlite3"'
+		LDFLAGS += -L${prefix}/lib
+		EOF
+		exit
+		;;
+	(Linux)
+		cat <<-EOF
+		CFLAGS += -D_GNU_SOURCE
+		RCS =
+		EOF
+		;;
+esac
+
+libs='libtls sqlite3'
+pkg-config --print-errors $libs
+
+cat <<EOF
+CFLAGS += $(pkg-config --cflags $libs)
+CFLAGS += -D'SQLITE3_BIN="$(pkg-config --variable=prefix sqlite3)/bin/sqlite3"'
+LDFLAGS += $(pkg-config --libs-only-L $libs)
+LDLIBS = $(pkg-config --libs-only-l sqlite3)
+LDLIBS_litterbox = $(pkg-config --libs-only-l libtls)
+EOF

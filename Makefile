@@ -1,11 +1,8 @@
 PREFIX = /usr/local
 MANDIR = ${PREFIX}/share/man
 ETCDIR = ${PREFIX}/etc
-LIBS_PREFIX = /usr/local
 
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
-CFLAGS += ${LIBS_PREFIX:%=-I%/include}
-LDFLAGS += ${LIBS_PREFIX:%=-L%/lib}
 LDLIBS = -lsqlite3
 LDLIBS_litterbox = -ltls
 
