@@ -39,7 +39,6 @@ struct Matcher {
 #define P0_MODE "[!~&@%+ ]?"
 #define P1_TIME "^[[]([^]]+)[]][ \t]"
 
-#define P2_MESSAGE "(, \"([^\"]+)\")?"
 static const struct Matcher Catgirl[] = {
 	{
 		P1_TIME "<([^>]+)> (.+)",
@@ -54,23 +53,25 @@ static const struct Matcher Catgirl[] = {
 		P1_TIME "([^ ]+) arrives",
 		Join, { ":time", ":nick" },
 	}, {
-		P1_TIME "([^ ]+) leaves [^,]+" P2_MESSAGE,
+		P1_TIME "([^ ]+) leaves [^:]+(: (.+))?",
 		Part, { ":time", ":nick", NULL, ":message" },
 	}, {
-		P1_TIME "([^ ]+) kicks ([^ ]+) out of [^,]+" P2_MESSAGE,
+		P1_TIME "([^ ]+) kicks ([^ ]+) out of [^:]+(: (.+))?",
 		Kick, { ":time", ":nick", ":target", NULL, ":message" },
 	}, {
-		P1_TIME "([^ ]+) leaves" P2_MESSAGE,
+		P1_TIME "([^ ]+) leaves(: (.+))?",
 		Quit, { ":time", ":nick", NULL, ":message" },
 	}, {
 		P1_TIME "([^ ]+) is now known as ([^ ]+)",
 		Nick, { ":time", ":nick", ":target" },
 	}, {
-		P1_TIME "([^ ]+) places a new sign in [^,]+" P2_MESSAGE,
+		P1_TIME "([^ ]+) places a new sign in [^:]+: (.+)",
 		Topic, { ":time", ":nick", ":message" },
+	}, {
+		P1_TIME "([^ ]+) removes the sign in",
+		Topic, { ":time", ":nick" },
 	},
 };
-#undef P2_MESSAGE
 
 static const struct Matcher Generic[] = {
 	{
