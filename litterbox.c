@@ -54,7 +54,7 @@ static void format(const char *format, ...) {
 	int len = vsnprintf(buf, sizeof(buf), format, ap);
 	va_end(ap);
 	assert((size_t)len < sizeof(buf));
-	if (verbose) printf("%s", buf);
+	if (verbose) fprintf(stderr, "%s", buf);
 	clientWrite(buf, len);
 }
 
