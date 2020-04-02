@@ -305,8 +305,7 @@ int main(int argc, char *argv[]) {
 	const char *context = NULL;
 	const struct Format *format = &Formats[0];
 
-	int opt;
-	while (0 < (opt = getopt(argc, argv, "DN:c:d:f:v"))) {
+	for (int opt; 0 < (opt = getopt(argc, argv, "DN:c:d:f:v"));) {
 		switch (opt) {
 			break; case 'D': dedup = true;
 			break; case 'N': network = optarg;
@@ -391,8 +390,7 @@ int main(int argc, char *argv[]) {
 		}
 		dbRun(insertContext);
 
-		ssize_t len;
-		while (0 < (len = getline(&line, &cap, file))) {
+		for (ssize_t len; 0 < (len = getline(&line, &cap, file));) {
 			matchLine(format, regex, line);
 			sizeRead += len;
 			if (100 * sizeRead / sizeTotal != sizePercent) {

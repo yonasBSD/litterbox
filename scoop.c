@@ -385,9 +385,8 @@ int main(int argc, char *argv[]) {
 	const char *search = NULL;
 	const char *where = NULL;
 
-	int opt;
 	const char *Opts = "D:F:LN:T:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
-	while (0 < (opt = getopt(argc, argv, Opts))) {
+	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);

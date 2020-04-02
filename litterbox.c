@@ -474,8 +474,7 @@ static void clearJoins(const char *nick, const char *channel) {
 
 static void handleReplyNames(struct Message *msg) {
 	require(msg, false, 3);
-	char *names = msg->params[3];
-	while (names) {
+	for (char *names = msg->params[3]; names;) {
 		char *nick = strsep(&names, " ");
 		nick += strspn(nick, prefixes);
 		insertJoin(nick, msg->params[2]);
@@ -677,28 +676,34 @@ int main(int argc, char *argv[]) {
 	const char *user = NULL;
 	const char *pass = NULL;
 
-	const char *Opts = "!N:Qb:c:d:h:ij:k:l:mn:p:qu:vw:";
-	const struct option LongOpts[] = {
-		{ "insecure", no_argument, NULL, '!' },
-		{ "network", required_argument, NULL, 'N' },
-		{ "public-query", no_argument, NULL, 'Q' },
-		{ "cert", required_argument, NULL, 'c' },
-		{ "database", required_argument, NULL, 'd' },
-		{ "host", required_argument, NULL, 'h' },
-		{ "join", required_argument, NULL, 'j' },
-		{ "priv", required_argument, NULL, 'k' },
-		{ "limit", required_argument, NULL, 'l' },
-		{ "nick", required_argument, NULL, 'n' },
-		{ "port", required_argument, NULL, 'p' },
-		{ "private-query", no_argument, NULL, 'q' },
-		{ "user", required_argument, NULL, 'u' },
-		{ "verbose", no_argument, NULL, 'v' },
-		{ "pass", required_argument, NULL, 'w' },
+	struct option options[] = {
+		{ .val = '!', .name = "insecure", no_argument },
+		{ .val = 'N', .name = "network", required_argument },
+		{ .val = 'Q', .name = "public-query", no_argument },
+		{ .val = 'b', .name = "backup", required_argument },
+		{ .val = 'c', .name = "cert", required_argument },
+		{ .val = 'd', .name = "database", required_argument },
+		{ .val = 'h', .name = "host", required_argument },
+		{ .val = 'i', .name = "init", no_argument },
+		{ .val = 'j', .name = "join", required_argument },
+		{ .val = 'k', .name = "priv", required_argument },
+		{ .val = 'l', .name = "limit", required_argument },
+		{ .val = 'm', .name = "migrate", no_argument },
+		{ .val = 'n', .name = "nick", required_argument },
+		{ .val = 'p', .name = "port", required_argument },
+		{ .val = 'q', .name = "private-query", no_argument },
+		{ .val = 'u', .name = "user", required_argument },
+		{ .val = 'v', .name = "verbose", no_argument },
+		{ .val = 'w', .name = "pass", required_argument },
 		{0},
 	};
+	char opts[2 * ARRAY_LEN(options)];
+	for (size_t i = 0, j = 0; i < ARRAY_LEN(options); ++i) {
+		opts[j++] = options[i].val;
+		if (options[i].has_arg) opts[j++] = ':';
+	}
 
-	int opt;
-	while (0 < (opt = getopt_config(argc, argv, Opts, LongOpts, NULL))) {
+	for (int opt; 0 < (opt = getopt_config(argc, argv, opts, options, NULL));) {
 		switch (opt) {
 			break; case '!': insecure = true;
 			break; case 'N': defaultNetwork = optarg;
