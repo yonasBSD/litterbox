@@ -299,23 +299,32 @@ static void dedupEvents(sqlite3 *db) {
 }
 
 int main(int argc, char *argv[]) {
+	bool test = false;
 	char *path = NULL;
 	bool dedup = false;
 	const char *network = NULL;
 	const char *context = NULL;
 	const struct Format *format = &Formats[0];
 
-	for (int opt; 0 < (opt = getopt(argc, argv, "DN:c:d:f:v"));) {
+	for (int opt; 0 < (opt = getopt(argc, argv, "DN:c:d:f:nv"));) {
 		switch (opt) {
 			break; case 'D': dedup = true;
 			break; case 'N': network = optarg;
 			break; case 'c': context = optarg;
 			break; case 'd': path = optarg;
 			break; case 'f': format = formatParse(optarg);
+			break; case 'n': test = true;
 			break; case 'v': verbose = true;
 			break; default:  return EX_USAGE;
 		}
 	}
+
+	regex_t pathRegex = compile(format->pattern);
+	regex_t regex[format->len];
+	for (size_t i = 0; i < format->len; ++i) {
+		regex[i] = compile(format->matchers[i].pattern);
+	}
+	if (test) return EX_OK;
 
 	dbFind(path, SQLITE_OPEN_READWRITE);
 	if (dbVersion() != DatabaseVersion) {
@@ -326,12 +335,6 @@ int main(int argc, char *argv[]) {
 		dedupEvents(db);
 		sqlite3_close(db);
 		return EX_OK;
-	}
-
-	regex_t pathRegex = compile(format->pattern);
-	regex_t regex[format->len];
-	for (size_t i = 0; i < format->len; ++i) {
-		regex[i] = compile(format->matchers[i].pattern);
 	}
 
 	sqlite3_stmt *insertContext = NULL;

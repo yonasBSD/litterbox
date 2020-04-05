@@ -1,4 +1,4 @@
-.Dd January 4, 2020
+.Dd April  5, 2020
 .Dt UNSCOOP 1
 .Os
 .
@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl v
+.Op Fl nv
 .Op Fl N Ar network
 .Op Fl c Ar context
 .Op Fl d Ar path
@@ -86,6 +86,10 @@ The network and context must be set with
 .Fl N
 and
 .Fl c .
+.
+.It Fl n
+Do not import any files.
+Compile regular expressions and exit.
 .
 .It Fl v
 Print SQL
