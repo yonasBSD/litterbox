@@ -14,14 +14,12 @@ case "$(uname)" in
 		CFLAGS += -I${prefix}/include
 		CFLAGS += -D'SQLITE3_BIN="${prefix}/bin/sqlite3"'
 		LDFLAGS += -L${prefix}/lib
+		RCS = rc.d/litterbox
 		EOF
 		exit
 		;;
 	(Linux)
-		cat <<-EOF
-		CFLAGS += -D_GNU_SOURCE
-		RCS =
-		EOF
+		echo 'CFLAGS += -D_GNU_SOURCE'
 		;;
 esac
 

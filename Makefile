@@ -8,7 +8,7 @@ LDLIBS_litterbox = -ltls
 
 BINS = litterbox scoop unscoop
 MANS = ${BINS:=.1}
-RCS  = rc.d/litterbox
+RCS  =
 
 -include config.mk
 
