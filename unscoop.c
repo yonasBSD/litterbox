@@ -70,7 +70,13 @@ static const struct Matcher Catgirl[] = {
 	}, {
 		P1_TIME "([^ ]+) removes the sign in",
 		Topic, { ":time", ":nick" },
-	},
+	}, {
+		P1_TIME "([^ ]+) bans [+]b ([^ ]+)",
+		Ban, { ":time", ":nick", ":target" },
+	}, {
+		P1_TIME "([^ ]+) unbans [-]b ([^ ]+)",
+		Unban, { ":time", ":nick", ":target" },
+	}
 };
 
 static const struct Matcher Generic[] = {
@@ -119,6 +125,12 @@ static const struct Matcher IRC[] = {
 	}, {
 		P2_TAGS P3_ORIGIN "TOPIC [^ ]+( :?(.+))?",
 		Topic, { NULL, ":time", ":nick", ":user", ":host", NULL, ":message" },
+	}, {
+		P2_TAGS P3_ORIGIN "MODE [^ ]+ [+]b+ :?(.+)",
+		Ban, { NULL, ":time", ":nick", ":user", ":host", ":target" },
+	}, {
+		P2_TAGS P3_ORIGIN "MODE [^ ]+ [-]b+ :?(.+)",
+		Unban, { NULL, ":time", ":nick", ":user", ":host", ":target" },
 	},
 };
 #undef P2_TAGS
@@ -154,7 +166,13 @@ static const struct Matcher Textual[] = {
 	}, {
 		P1_TIME "([^ ]+) changed the topic to (.+)",
 		Topic, { ":time", ":nick", ":message" },
-	},
+	}, {
+		P1_TIME "([^ ]+) sets mode [+]b+ (.+)",
+		Ban, { ":time", ":nick", ":target" },
+	}, {
+		P1_TIME "([^ ]+) sets mode [-]b+ (.+)",
+		Unban, { ":time", ":nick", ":target" },
+	}
 };
 #undef P2_USERHOST
 #undef P2_MESSAGE
