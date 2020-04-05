@@ -585,6 +585,38 @@ static void handleTopic(struct Message *msg) {
 	insertEvent(msg, Topic, msg->params[0], NULL, msg->params[1]);
 }
 
+static void handleMode(struct Message *msg) {
+	require(msg, true, 2);
+	if (!strchr(chanTypes, msg->params[0][0])) return;
+	insertContext(msg->params[0], false);
+	insertName(msg);
+
+	bool set = true;
+	size_t param = 2;
+	for (char *ch = msg->params[1]; *ch; ++ch) {
+		if (*ch == '+') {
+			set = true;
+		} else if (*ch == '-') {
+			set = false;
+		} else if (*ch == 'b') {
+			if (param >= ParamCap || !msg->params[param]) {
+				errx(EX_PROTOCOL, "MODE missing ban target");
+			}
+			insertEvent(
+				msg, (set ? Ban : Unban), msg->params[0],
+				msg->params[param++], NULL
+			);
+		} else if (
+			strchr(prefixModes, *ch) ||
+			strchr(listModes, *ch) ||
+			strchr(paramModes, *ch) ||
+			(set && strchr(setParamModes, *ch))
+		) {
+			param++;
+		}
+	}
+}
+
 static void handlePing(struct Message *msg) {
 	require(msg, false, 1);
 	format("PONG :%s\r\n", msg->params[0]);
@@ -617,6 +649,7 @@ static const struct Handler {
 	{ "ERROR", false, handleError },
 	{ "JOIN", true, handleJoin },
 	{ "KICK", true, handleKick },
+	{ "MODE", true, handleMode },
 	{ "NICK", true, handleNick },
 	{ "NOTICE", true, handlePrivmsg },
 	{ "PART", true, handlePart },
