@@ -122,6 +122,10 @@ static char *self;
 static char *network;
 static char *chanTypes;
 static char *prefixes;
+static char *prefixModes;
+static char *listModes;
+static char *paramModes;
+static char *setParamModes;
 
 static void set(char **field, const char *value) {
 	free(*field);
@@ -172,9 +176,13 @@ static void handleReplyISupport(struct Message *msg) {
 		} else if (!strcmp(key, "CHANTYPES")) {
 			set(&chanTypes, msg->params[i]);
 		} else if (!strcmp(key, "PREFIX")) {
-			strsep(&msg->params[i], ")");
-			if (!msg->params[i]) continue;
+			strsep(&msg->params[i], "(");
+			set(&prefixModes, strsep(&msg->params[i], ")"));
 			set(&prefixes, msg->params[i]);
+		} else if (!strcmp(key, "CHANMODES")) {
+			set(&listModes, strsep(&msg->params[i], ","));
+			set(&paramModes, strsep(&msg->params[i], ","));
+			set(&setParamModes, strsep(&msg->params[i], ","));
 		}
 	}
 }
@@ -759,6 +767,10 @@ int main(int argc, char *argv[]) {
 	set(&network, (defaultNetwork ? defaultNetwork : host));
 	set(&chanTypes, "#&");
 	set(&prefixes, "@+");
+	set(&prefixModes, "ov");
+	set(&listModes, "b");
+	set(&paramModes, "k");
+	set(&setParamModes, "l");
 
 	client = tls_client();
 	if (!client) errx(EX_SOFTWARE, "tls_client");
