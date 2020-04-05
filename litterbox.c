@@ -177,12 +177,22 @@ static void handleReplyISupport(struct Message *msg) {
 			set(&chanTypes, msg->params[i]);
 		} else if (!strcmp(key, "PREFIX")) {
 			strsep(&msg->params[i], "(");
-			set(&prefixModes, strsep(&msg->params[i], ")"));
+			char *modes = strsep(&msg->params[i], ")");
+			if (!modes || !msg->params[i]) {
+				errx(EX_PROTOCOL, "invalid PREFIX value");
+			}
+			set(&prefixModes, modes);
 			set(&prefixes, msg->params[i]);
 		} else if (!strcmp(key, "CHANMODES")) {
-			set(&listModes, strsep(&msg->params[i], ","));
-			set(&paramModes, strsep(&msg->params[i], ","));
-			set(&setParamModes, strsep(&msg->params[i], ","));
+			char *list = strsep(&msg->params[i], ",");
+			char *param = strsep(&msg->params[i], ",");
+			char *setParam = strsep(&msg->params[i], ",");
+			if (!list || !param || !setParam) {
+				errx(EX_PROTOCOL, "invalid CHANMODES value");
+			}
+			set(&listModes, list);
+			set(&paramModes, param);
+			set(&setParamModes, setParam);
 		}
 	}
 }
