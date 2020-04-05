@@ -304,6 +304,10 @@ static void querySearch(struct Message *msg) {
 					"\3%02d%s\3 set the topic: %s\r\n",
 					color(user), nick, message
 				);
+			break; case Ban:
+				format("\3%02d%s\3 banned %s\r\n", color(user), nick, target);
+			break; case Unban:
+				format("\3%02d%s\3 unbanned %s\r\n", color(user), nick, target);
 		}
 	}
 	if (result != SQLITE_DONE) {

@@ -77,6 +77,12 @@ static void formatPlain(bool group, struct Event e) {
 		break; case Topic: {
 			printf("%s set the topic: %s\n", e.nick, e.message);
 		}
+		break; case Ban: {
+			printf("%s banned %s\n", e.nick, e.target);
+		}
+		break; case Unban: {
+			printf("%s unbanned %s\n", e.nick, e.target);
+		}
 	}
 }
 
@@ -189,6 +195,12 @@ static void formatColor(bool group, struct Event e) {
 				color(e.user), e.nick, ansi(e.message)
 			);
 		}
+		break; case Ban: {
+			printf(C "%s" O " banned %s\n", color(e.user), e.nick, e.target);
+		}
+		break; case Unban: {
+			printf(C "%s" O " unbanned %s\n", color(e.user), e.nick, e.target);
+		}
 	}
 #undef C
 #undef O
@@ -229,6 +241,12 @@ static void formatIRC(bool group, struct Event e) {
 		}
 		break; case Topic: {
 			printf("TOPIC %s :%s\r\n", e.context, e.message);
+		}
+		break; case Ban: {
+			printf("MODE %s +b %s\r\n", e.context, e.target);
+		}
+		break; case Unban: {
+			printf("MODE %s -b %s\r\n", e.context, e.target);
 		}
 	}
 }

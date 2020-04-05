@@ -42,7 +42,9 @@ enum { DatabaseVersion = 2 };
 	X(Quit, "quit") \
 	X(Kick, "kick") \
 	X(Nick, "nick") \
-	X(Topic, "topic")
+	X(Topic, "topic") \
+	X(Ban, "ban") \
+	X(Unban, "unban")
 
 enum Type {
 #define X(id, _) id,
