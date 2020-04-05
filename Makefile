@@ -12,9 +12,10 @@ RCS  = rc.d/litterbox
 
 -include config.mk
 
+FORMATS = generic catgirl irc textual
 OBJS_litterbox = litterbox.o config.o
 
-dev: tags all
+dev: tags all test
 
 all: ${BINS}
 
@@ -26,11 +27,17 @@ litterbox: ${OBJS_litterbox}
 
 ${BINS:=.o}: database.h
 
+test: .test
+
+.test: unscoop
+	set -e; for format in ${FORMATS}; do ./unscoop -n -f $$format; done
+	touch .test
+
 tags: *.c *.h
 	ctags -w *.c *.h
 
 clean:
-	rm -f tags ${BINS} ${OBJS_litterbox} ${BINS:=.o}
+	rm -f .test tags ${BINS} ${OBJS_litterbox} ${BINS:=.o}
 
 install: ${BINS} ${MANS}
 	install -d ${PREFIX}/bin ${MANDIR}/man1
