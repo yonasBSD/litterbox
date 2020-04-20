@@ -4,7 +4,7 @@ ETCDIR = ${PREFIX}/etc
 
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
 LDLIBS = -lsqlite3
-LDLIBS_litterbox = -ltls
+LDLIBS.litterbox = -ltls
 
 BINS = litterbox scoop unscoop
 MANS = ${BINS:=.1}
@@ -13,17 +13,17 @@ RCS  =
 -include config.mk
 
 FORMATS = generic catgirl irc textual
-OBJS_litterbox = litterbox.o config.o
+OBJS.litterbox = litterbox.o config.o
 
 dev: tags all test
 
 all: ${BINS}
 
-litterbox: ${OBJS_litterbox}
-	${CC} ${LDFLAGS} ${OBJS_$@} ${LDLIBS} ${LDLIBS_$@} -o $@
+litterbox: ${OBJS.litterbox}
+	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS} ${LDLIBS.$@} -o $@
 
 .o:
-	${CC} ${LDFLAGS} $< ${LDLIBS} ${LDLIBS_$@} -o $@
+	${CC} ${LDFLAGS} $< ${LDLIBS} ${LDLIBS.$@} -o $@
 
 ${BINS:=.o}: database.h
 
@@ -37,7 +37,7 @@ tags: *.c *.h
 	ctags -w *.c *.h
 
 clean:
-	rm -f .test tags ${BINS} ${OBJS_litterbox} ${BINS:=.o}
+	rm -f .test tags ${BINS} ${OBJS.litterbox} ${BINS:=.o}
 
 install: ${BINS} ${MANS}
 	install -d ${PREFIX}/bin ${MANDIR}/man1

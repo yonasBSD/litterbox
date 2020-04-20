@@ -31,5 +31,5 @@ CFLAGS += $(pkg-config --cflags $libs)
 CFLAGS += -D'SQLITE3_BIN="$(pkg-config --variable=prefix sqlite3)/bin/sqlite3"'
 LDFLAGS += $(pkg-config --libs-only-L $libs)
 LDLIBS = $(pkg-config --libs-only-l sqlite3)
-LDLIBS_litterbox = $(pkg-config --libs-only-l libtls)
+LDLIBS.litterbox = $(pkg-config --libs-only-l libtls)
 EOF
