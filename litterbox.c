@@ -632,8 +632,23 @@ static void handlePing(struct Message *msg) {
 	format("PONG :%s\r\n", msg->params[0]);
 }
 
+static void updateConsumer(size_t pos) {
+	static sqlite3_stmt *stmt;
+	const char *sql = SQL(
+		INSERT INTO consumers (host, port, pos) VALUES (:host, :port, :pos)
+		ON CONFLICT (host, port) DO
+		UPDATE SET pos = :pos WHERE host = :host AND port = :port;
+	);
+	dbPersist(&stmt, sql);
+	dbBindText(stmt, ":host", host);
+	dbBindText(stmt, ":port", port);
+	dbBindInt(stmt, ":pos", pos);
+	dbRun(stmt);
+}
+
 static void handleError(struct Message *msg) {
 	require(msg, false, 1);
+	if (msg->pos) updateConsumer(msg->pos);
 	errx(EX_UNAVAILABLE, "%s", msg->params[0]);
 }
 
@@ -672,20 +687,6 @@ static const struct Handler {
 static int compar(const void *cmd, const void *_handler) {
 	const struct Handler *handler = _handler;
 	return strcmp(cmd, handler->cmd);
-}
-
-static void updateConsumer(size_t pos) {
-	static sqlite3_stmt *stmt;
-	const char *sql = SQL(
-		INSERT INTO consumers (host, port, pos) VALUES (:host, :port, :pos)
-		ON CONFLICT (host, port) DO
-		UPDATE SET pos = :pos WHERE host = :host AND port = :port;
-	);
-	dbPersist(&stmt, sql);
-	dbBindText(stmt, ":host", host);
-	dbBindText(stmt, ":port", port);
-	dbBindInt(stmt, ":pos", pos);
-	dbRun(stmt);
 }
 
 static void handle(struct Message msg) {
