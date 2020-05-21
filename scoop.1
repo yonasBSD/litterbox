@@ -82,11 +82,12 @@ Match events from
 Match events
 .Po
 of type
-.Cm kick
-or
+.Cm kick ,
 .Cm nick
+or
+.Cm ban
 .Pc
-with the target nickname
+with the target nickname or mask
 .Ar target .
 .
 .It Fl a Ar time
@@ -174,7 +175,9 @@ The types are
 .Cm quit ,
 .Cm kick ,
 .Cm nick ,
-.Cm topic .
+.Cm topic ,
+.Cm ban ,
+.Cm unban .
 .
 .It Fl u Ar user
 Match events from users with the username
@@ -211,6 +214,11 @@ For search query syntax, see
 The command to pipe terminal output to.
 The default is
 .Ev PAGER=less .
+.It Ev SHELL
+The shell used to run
+.Ev PAGER .
+The default is
+.Pa /bin/sh .
 .El
 .
 .Sh SEE ALSO

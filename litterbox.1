@@ -1,4 +1,4 @@
-.Dd May 20, 2020
+.Dd May 21, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -33,21 +33,40 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon logs IRC activity to a database
+daemon logs IRC (over TLS) activity to a database
 which may be queried with
 .Xr scoop 1 .
-It connects to IRC over TLS.
 Messages, notices, joins, parts, quits, kicks,
-nick changes and topic changes
+nick changes,
+topic changes
+bans and unbans
 are recorded in the database.
 The contents of messages are indexed for full-text search.
 .
 .Pp
-The database must first be initialized with
+The
+.Nm
+daemon
+may be connected to the
+.Xr pounce 1
+IRC bouncer alongside regular clients
+to provide central logging
+and a simple search query interface with
+.Fl q .
+.
+.Pp
+The database must be initialized with
 .Fl i .
 If the database format has changed,
-an existing database can be migrated with
+it will be migrated automatically when
+.Nm
+starts,
+or can be migrated explicitly with
 .Fl m .
+Instances of
+.Nm
+connected to different IRC networks
+can share the same database.
 .
 .Pp
 Options can be loaded from
@@ -96,21 +115,22 @@ For search query syntax, see
 .
 .It Fl b Ar path
 Perform a live database backup to
-.Ar path .
+.Ar path
+and exit.
 This operation requires SQLite version 3.27.0 or newer.
 .
 .It Fl c Ar path , Cm cert = Ar path
 Load the TLS client certificate from
 .Ar path
-and authenticate with SASL EXTERNAL.
+and authenticate with SASL EXTERNAL,
+also known as CertFP.
 If the private key is in a separate file,
 it is loaded with
 .Fl k .
 .
 .It Fl d Ar path , Cm database = Ar path
 Set the path to the database file.
-The possible default paths
-are documented in
+The default paths are documented in
 .Sx FILES .
 .
 .It Fl h Ar host , Cm host = Ar host
@@ -118,7 +138,7 @@ Connect to
 .Ar host .
 .
 .It Fl i
-Initialize the database.
+Initialize the database and exit.
 .
 .It Fl j Ar chan , Cm join = Ar chan
 Join the comma-separated list of channels
@@ -138,7 +158,8 @@ or
 The default limit is 10.
 .
 .It Fl m
-Migrate the database to the latest format.
+Migrate the database to the latest format
+and exit.
 .
 .It Fl n Ar nick , Cm nick = Ar nick
 Set the nickname to
@@ -153,15 +174,11 @@ The default port is 6697.
 .
 .It Fl q , Cm private-query
 Enable the private search query interface.
-This allows search queries in private messages to
-.Nm
-only from itself.
-This is intended for use with
-.Nm
-connected to
+When connected to
 .Xr pounce 1 ,
-allowing the user to message themselves
-to perform searches.
+this allows the user to
+private message their own nickname
+with search queries.
 Search results are limited to the current network.
 .
 .Pp
@@ -277,19 +294,15 @@ public-query
 .Xr unscoop 1
 .
 .Sh STANDARDS
-The
-.Nm
-daemon implements the following:
-.
 .Bl -item
 .It
 .Rs
-.%A Waldo Bastian
-.%A Ryan Lortie
-.%A Lennart Poettering
-.%T XDG Base Directory Specification
-.%D November 24, 2010
-.%U https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+.%R RFC 2812
+.%A C. Kalt
+.%T Internet Relay Chat: Client Protocol
+.%I IETF
+.%D April 2000
+.%U https://tools.ietf.org/html/rfc2812
 .Re
 .
 .It
@@ -305,12 +318,12 @@ daemon implements the following:
 .
 .It
 .Rs
-.%A C. Kalt
-.%T Internet Relay Chat: Client Protocol
-.%I IETF
-.%N RFC 2812
-.%D April 2000
-.%U https://tools.ietf.org/html/rfc2812
+.%A Waldo Bastian
+.%A Ryan Lortie
+.%A Lennart Poettering
+.%T XDG Base Directory Specification
+.%D November 24, 2010
+.%U https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 .Re
 .
 .It
@@ -326,7 +339,7 @@ daemon implements the following:
 .Ss Extensions
 The
 .Nm
-daemon can take advantage of the
+daemon implements the
 .Sy causal.agency/consumer
 and
 .Sy causal.agency/passive
