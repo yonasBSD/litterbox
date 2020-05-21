@@ -514,6 +514,7 @@ int main(int argc, char *argv[]) {
 		dup2(rw[1], STDOUT_FILENO);
 		close(rw[0]);
 		close(rw[1]);
+		setlinebuf(stdout);
 	}
 
 	int result;
