@@ -470,7 +470,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	if (optind < argc) {
-		queryAdd(SQL(search MATCH :search));
+		queryAdd(SQL(AND search MATCH :search));
 		binds[n++] = Bind(":search", argv[optind], 0);
 	}
 	if (limit) {
