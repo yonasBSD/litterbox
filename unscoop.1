@@ -1,4 +1,4 @@
-.Dd May 20, 2020
+.Dd May 21, 2020
 .Dt UNSCOOP 1
 .Os
 .
@@ -25,18 +25,17 @@ The
 utility imports IRC client logs into the
 .Xr litterbox 1
 database.
-The network and channel or query names
-can be inferred from file paths,
-so it is best to run
+Network and channel or query names
+can be inferred from file paths, so
 .Nm
-from the log directory root
-or use absolute paths.
+should be run from the log directory root.
 .
 .Pp
 The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl D
-Delete duplicate events from overlapping imports.
+Delete duplicate events from overlapping imports
+and exit.
 This operation requires SQLite version 3.25.0 or newer.
 .
 .It Fl N Ar network
@@ -59,16 +58,14 @@ The default path is as in
 .Xr litterbox 1 .
 .
 .It Fl f Ar format
-Set the input log format to one of
-.Cm catgirl ,
-.Cm generic ,
-.Cm irc ,
-.Cm textual .
-.
-.Pp
-The default format is
-.Cm generic ,
-which matches paths of the form
+Set the input log format to one of:
+.Bl -tag -width Ds
+.It Cm catgirl
+The
+.Xr catgirl 1
+IRC client.
+.It Cm generic
+Matches paths of the form
 .Pa network/context/*
 and events of the following forms:
 .Bd -literal -offset indent
@@ -76,16 +73,19 @@ and events of the following forms:
 [timestamp] -nick- notice
 [timestamp] * nick action
 .Ed
-.
-.Pp
-The
-.Cm irc
-format matches IRC protocol messages tagged with
+.It Cm irc
+Matches IRC protocol messages tagged with
 .Sy server-time .
 The network and context must be set with
 .Fl N
 and
 .Fl c .
+.It Cm textual
+The Textual IRC client.
+.El
+.Pp
+The default format is
+.Cm generic .
 .
 .It Fl n
 Do not import any files.
