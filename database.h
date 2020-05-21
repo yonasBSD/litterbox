@@ -159,7 +159,7 @@ static inline void dbClose(void) {
 static inline sqlite3_stmt *dbPrepare(const char *sql) {
 	sqlite3_stmt *stmt;
 	int error = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-	if (error) err(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
+	if (error) errx(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
 	return stmt;
 }
 
