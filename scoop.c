@@ -295,7 +295,7 @@ static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
 	sqlite3_result_int(ctx, !error);
 }
 
-static const char *Inner = SQL(
+static const char *Query = SQL(
 	SELECT
 		contexts.network,
 		contexts.name AS context,
@@ -343,16 +343,6 @@ static const char *Limit = SQL(
 	LIMIT coalesce(:limit, -1)
 );
 
-static const char *Outer = SQL(
-	SELECT * FROM results
-	ORDER BY time, event
-);
-
-static const char *Group = SQL(
-	SELECT * FROM results
-	ORDER BY network, context, time, event
-);
-
 static const char *TypeNames[] = {
 #define X(id, name) [id] = name,
 	ENUM_TYPE
@@ -395,35 +385,38 @@ int main(int argc, char *argv[]) {
 
 	char *path = NULL;
 	bool shell = false;
-	bool group = false;
 	Format *format = (tty ? formatColor : formatPlain);
+
+	bool sort = false;
+	bool group = false;
+	const char *search = NULL;
+	const char *where = NULL;
+	const char *limit = NULL;
 
 	int n = 0;
 	struct Bind binds[argc];
-	const char *search = NULL;
-	const char *where = NULL;
-
-	const char *Opts = "D:F:LN:T:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
+	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
 			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
 			break; case 'L': binds[n++] = Bind(":local", NULL, 1);
 			break; case 'N': binds[n++] = Bind(":network", optarg, 0);
+			break; case 'S': shell = true;
 			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
 			break; case 'a': binds[n++] = Bind(":after", optarg, 0);
 			break; case 'b': binds[n++] = Bind(":before", optarg, 0);
 			break; case 'c': binds[n++] = Bind(":context", optarg, 0);
 			break; case 'd': path = optarg;
 			break; case 'f': format = parseFormat(optarg);
-			break; case 'g': group = true;
+			break; case 'g': group = true; sort = true;
 			break; case 'h': binds[n++] = Bind(":host", optarg, 0);
-			break; case 'l': binds[n++] = Bind(":limit", optarg, 0);
+			break; case 'l': limit = optarg; sort = true;
 			break; case 'm': binds[n++] = Bind(":regexp", optarg, 0);
 			break; case 'n': binds[n++] = Bind(":nick", optarg, 0);
 			break; case 'p': binds[n++] = Bind(":query", NULL, 0);
 			break; case 'q': binds[n++] = Bind(":query", NULL, 1);
-			break; case 's': shell = true;
+			break; case 's': sort = true;
 			break; case 't': binds[n++] = Bind(":type", NULL, parseType(optarg));
 			break; case 'u': binds[n++] = Bind(":user", optarg, 0);
 			break; case 'v': verbose = true;
@@ -450,24 +443,26 @@ int main(int argc, char *argv[]) {
 		err(EX_UNAVAILABLE, "sqlite3");
 	}
 
-	int len;
 	char sql[4096];
-	if (search) {
-		len = snprintf(
-			sql, sizeof(sql),
-			"WITH results AS (%s AND %s AND %s %s) %s;",
-			Inner, Search, (where ? where : "true"), Limit,
-			(group ? Group : Outer)
-		);
-		binds[n++] = Bind(":search", search, 0);
-	} else {
-		len = snprintf(
-			sql, sizeof(sql),
-			"WITH results AS (%s AND %s %s) %s;",
-			Inner, (where ? where : "true"), Limit, (group ? Group : Outer)
-		);
-	}
+	int len = snprintf(
+		sql, sizeof(sql),
+		SQL(
+			WITH results AS (
+				%s AND %s AND %s
+				%s
+			)
+			SELECT * FROM results %s %s %s;
+		),
+		Query, (search ? Search : "true"), (where ? where : "true"),
+		(limit ? Limit : ""),
+		(sort ? "ORDER BY" : ""),
+		(group ? "network, context," : ""),
+		(sort ? "time, event" : "")
+	);
 	assert((size_t)len < sizeof(sql));
+
+	if (search) binds[n++] = Bind(":search", search, 0);
+	if (limit) binds[n++] = Bind(":limit", limit, 0);
 
 	sqlite3_stmt *stmt = dbPrepare(sql);
 	for (int i = 0; i < n; ++i) {

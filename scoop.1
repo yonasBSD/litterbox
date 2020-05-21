@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl Lgpqv
+.Op Fl Lgpqsv
 .Op Fl D Ar date
 .Op Fl F Ar format
 .Op Fl N Ar network
@@ -27,7 +27,7 @@
 .Op Fl w Ar expr
 .Op Ar search
 .Nm
-.Fl s
+.Fl S
 .
 .Sh DESCRIPTION
 The
@@ -37,10 +37,6 @@ utility queries the
 IRC log database,
 matching events on the intersection
 of the criteria specified in arguments.
-With no arguments,
-all events in the database are matched.
-Events are output in order
-from oldest to newest.
 .
 .Pp
 If standard output is a terminal,
@@ -77,6 +73,12 @@ Output timestamps in local time.
 .It Fl N Ar network
 Match events from
 .Ar network .
+.
+.It Fl S
+Instead of performing a query,
+launch the
+.Xr sqlite3 1
+shell for the database.
 .
 .It Fl T Ar target
 Match events
@@ -131,6 +133,8 @@ otherwise.
 .
 .It Fl g
 Group events by network and channel or query name.
+Implies
+.Fl s .
 .
 .It Fl h Ar host
 Match events from users with the hostname
@@ -139,6 +143,8 @@ Match events from users with the hostname
 .It Fl l Ar limit
 Limit the number of events matched,
 ordered by most recent.
+Implies
+.Fl s .
 .
 .It Fl m Ar regexp
 Match events with messages
@@ -158,10 +164,9 @@ Match only events from channels.
 Match only events from queries.
 .
 .It Fl s
-Instead of performing a query,
-launch the
-.Xr sqlite3 1
-shell for the database.
+Sort the results from oldest to newest.
+By default events are output
+in the order they appear in the database.
 .
 .It Fl t Ar type
 Match events of
