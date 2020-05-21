@@ -1,7 +1,7 @@
 *.o
 .test
-/litterbox
-/scoop
-/unscoop
 config.mk
+litterbox
+scoop
 tags
+unscoop

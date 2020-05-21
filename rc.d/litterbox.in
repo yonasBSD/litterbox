@@ -17,7 +17,7 @@ command='/usr/sbin/daemon'
 pidprefix="/var/run/${name}"
 pidfile="${pidprefix}.pid"
 
-child_command='/usr/local/bin/litterbox'
+child_command='%%PREFIX%%/bin/litterbox'
 
 if [ -n "$2" ]; then
 	profile=$2
@@ -34,7 +34,7 @@ else
 	if [ -n "${litterbox_profiles}" -a -n "$1" ]; then
 		for profile in ${litterbox_profiles}; do
 			echo "===> ${name} profile: ${profile}"
-			/usr/local/etc/rc.d/${name} "$1" "${profile}" || exit "$?"
+			%%PREFIX%%/etc/rc.d/${name} "$1" "${profile}" || exit "$?"
 		done
 		exit
 	fi
