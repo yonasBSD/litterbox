@@ -152,58 +152,56 @@ static void formatColor(bool group, struct Event e) {
 	}
 	printf("[%s] ", e.time);
 
-#define C "\33[%dm"
-#define O "\33[m"
+#define C(x) "\33[%dm" x "\33[m"
 	switch (e.type) {
 		break; case Privmsg: {
-			printf(C "<%s>" O " %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(C("<%s>") " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Notice: {
-			printf(C "-%s-" O " %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(C("-%s-") " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Action: {
-			printf(C "* %s" O " %s\n", color(e.user), e.nick, ansi(e.message));
+			printf(C("* %s") " %s\n", color(e.user), e.nick, ansi(e.message));
 		}
 		break; case Join: {
-			printf(C "%s" O " joined\n", color(e.user), e.nick);
+			printf(C("%s") " joined\n", color(e.user), e.nick);
 		}
 		break; case Part: {
 			printf(
-				C "%s" O " parted: %s\n", color(e.user), e.nick, ansi(e.message)
+				C("%s") " parted: %s\n", color(e.user), e.nick, ansi(e.message)
 			);
 		}
 		break; case Quit: {
 			printf(
-				C "%s" O " quit: %s\n", color(e.user), e.nick, ansi(e.message)
+				C("%s") " quit: %s\n", color(e.user), e.nick, ansi(e.message)
 			);
 		}
 		break; case Kick: {
 			printf(
-				C "%s" O " kicked %s: %s\n",
+				C("%s") " kicked %s: %s\n",
 				color(e.user), e.nick, e.target, ansi(e.message)
 			);
 		}
 		break; case Nick: {
 			printf(
-				C "%s" O " changed nick to " C "%s" O "\n",
+				C("%s") " changed nick to " C("%s") "\n",
 				color(e.user), e.nick, color(e.user), e.target
 			);
 		}
 		break; case Topic: {
 			printf(
-				C "%s" O " set the topic: %s\n",
+				C("%s") " set the topic: %s\n",
 				color(e.user), e.nick, ansi(e.message)
 			);
 		}
 		break; case Ban: {
-			printf(C "%s" O " banned %s\n", color(e.user), e.nick, e.target);
+			printf(C("%s") " banned %s\n", color(e.user), e.nick, e.target);
 		}
 		break; case Unban: {
-			printf(C "%s" O " unbanned %s\n", color(e.user), e.nick, e.target);
+			printf(C("%s") " unbanned %s\n", color(e.user), e.nick, e.target);
 		}
 	}
 #undef C
-#undef O
 }
 
 static void formatIRC(bool group, struct Event e) {
@@ -251,6 +249,22 @@ static void formatIRC(bool group, struct Event e) {
 	}
 }
 
+static const struct {
+	const char *name;
+	Format *fn;
+} Formats[] = {
+	{ "plain", formatPlain },
+	{ "color", formatColor },
+	{ "irc", formatIRC },
+};
+
+static Format *parseFormat(const char *name) {
+	for (size_t i = 0; i < ARRAY_LEN(Formats); ++i) {
+		if (!strcmp(name, Formats[i].name)) return Formats[i].fn;
+	}
+	errx(EX_USAGE, "no such format %s", name);
+}
+
 static void regexpFree(void *_regex) {
 	regex_t *regex = _regex;
 	regfree(regex);
@@ -295,7 +309,7 @@ static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
 	sqlite3_result_int(ctx, !error);
 }
 
-static const char *Query = SQL(
+static char query[4096] = SQL(
 	SELECT
 		contexts.network,
 		contexts.name AS context,
@@ -322,26 +336,21 @@ static const char *Query = SQL(
 	JOIN contexts USING (context)
 	JOIN names USING (name)
 	JOIN search ON search.rowid = events.event
-	WHERE coalesce(contexts.network = :network, true)
-		AND coalesce(contexts.name = :context, true)
-		AND coalesce(contexts.query = :query, true)
-		AND coalesce(date(events.time) = date(:date), true)
-		AND coalesce(events.time >= datetime(:after), true)
-		AND coalesce(events.time < datetime(:before), true)
-		AND coalesce(events.type = :type, true)
-		AND coalesce(names.nick = :nick, true)
-		AND coalesce(names.user = :user, true)
-		AND coalesce(names.host = :host, true)
-		AND coalesce(events.target = :target, true)
-		AND coalesce(events.message REGEXP :regexp, true)
+	WHERE true
 );
 
-static const char *Search = SQL(search MATCH :search);
+static void queryAdd(const char *sql) {
+	size_t len = strlen(query);
+	snprintf(&query[len], sizeof(query) - len, " %s", sql);
+}
 
-static const char *Limit = SQL(
-	ORDER BY time DESC, event DESC
-	LIMIT coalesce(:limit, -1)
-);
+static struct Bind {
+	const char *param;
+	const char *text;
+	int value;
+} Bind(const char *param, const char *text, int value) {
+	return (struct Bind) { param, text, value };
+}
 
 static const char *TypeNames[] = {
 #define X(id, name) [id] = name,
@@ -356,30 +365,6 @@ static enum Type parseType(const char *input) {
 	errx(EX_USAGE, "no such type %s", input);
 }
 
-static const struct {
-	const char *name;
-	Format *fn;
-} Formats[] = {
-	{ "plain", formatPlain },
-	{ "color", formatColor },
-	{ "irc", formatIRC },
-};
-
-static Format *parseFormat(const char *name) {
-	for (size_t i = 0; i < ARRAY_LEN(Formats); ++i) {
-		if (!strcmp(name, Formats[i].name)) return Formats[i].fn;
-	}
-	errx(EX_USAGE, "no such format %s", name);
-}
-
-static struct Bind {
-	const char *param;
-	const char *text;
-	int value;
-} Bind(const char *param, const char *text, int value) {
-	return (struct Bind) { param, text, value };
-}
-
 int main(int argc, char *argv[]) {
 	bool tty = isatty(STDOUT_FILENO);
 
@@ -389,8 +374,6 @@ int main(int argc, char *argv[]) {
 
 	bool sort = false;
 	bool group = false;
-	const char *search = NULL;
-	const char *where = NULL;
 	const char *limit = NULL;
 
 	int n = 0;
@@ -398,33 +381,102 @@ int main(int argc, char *argv[]) {
 	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
-			break; case 'D': binds[n++] = Bind(":date", optarg, 0);
-			break; case 'F': binds[n++] = Bind(":format", optarg, 0);
-			break; case 'L': binds[n++] = Bind(":local", NULL, 1);
-			break; case 'N': binds[n++] = Bind(":network", optarg, 0);
-			break; case 'S': shell = true;
-			break; case 'T': binds[n++] = Bind(":target", optarg, 0);
-			break; case 'a': binds[n++] = Bind(":after", optarg, 0);
-			break; case 'b': binds[n++] = Bind(":before", optarg, 0);
-			break; case 'c': binds[n++] = Bind(":context", optarg, 0);
-			break; case 'd': path = optarg;
-			break; case 'f': format = parseFormat(optarg);
-			break; case 'g': group = true; sort = true;
-			break; case 'h': binds[n++] = Bind(":host", optarg, 0);
-			break; case 'l': limit = optarg; sort = true;
-			break; case 'm': binds[n++] = Bind(":regexp", optarg, 0);
-			break; case 'n': binds[n++] = Bind(":nick", optarg, 0);
-			break; case 'p': binds[n++] = Bind(":query", NULL, 0);
-			break; case 'q': binds[n++] = Bind(":query", NULL, 1);
-			break; case 's': sort = true;
-			break; case 't': binds[n++] = Bind(":type", NULL, parseType(optarg));
-			break; case 'u': binds[n++] = Bind(":user", optarg, 0);
-			break; case 'v': verbose = true;
-			break; case 'w': where = optarg;
-			break; default:  return EX_USAGE;
+			break; case 'D': {
+				queryAdd(SQL(AND date(events.time) = date(:date)));
+				binds[n++] = Bind(":date", optarg, 0);
+			}
+			break; case 'F': {
+				binds[n++] = Bind(":format", optarg, 0);
+			}
+			break; case 'L': {
+				binds[n++] = Bind(":local", NULL, 1);
+			}
+			break; case 'N': {
+				queryAdd(SQL(AND contexts.network = :network));
+				binds[n++] = Bind(":network", optarg, 0);
+			}
+			break; case 'S': {
+				shell = true;
+			}
+			break; case 'T': {
+				queryAdd(SQL(AND events.target = :target));
+				binds[n++] = Bind(":target", optarg, 0);
+			}
+			break; case 'a': {
+				queryAdd(SQL(AND events.time >= datetime(:after)));
+				binds[n++] = Bind(":after", optarg, 0);
+			}
+			break; case 'b': {
+				queryAdd(SQL(AND events.time < datetime(:before)));
+				binds[n++] = Bind(":before", optarg, 0);
+			}
+			break; case 'c': {
+				queryAdd(SQL(AND contexts.name = :context));
+				binds[n++] = Bind(":context", optarg, 0);
+			}
+			break; case 'd': {
+				path = optarg;
+			}
+			break; case 'f': {
+				format = parseFormat(optarg);
+			}
+			break; case 'g': {
+				group = true;
+				sort = true;
+			}
+			break; case 'h': {
+				queryAdd(SQL(AND names.host = :host));
+				binds[n++] = Bind(":host", optarg, 0);
+			}
+			break; case 'l': {
+				limit = optarg;
+				sort = true;
+			}
+			break; case 'm': {
+				queryAdd(SQL(AND events.message REGEXP :regexp));
+				binds[n++] = Bind(":regexp", optarg, 0);
+			}
+			break; case 'n': {
+				queryAdd(SQL(AND names.nick = :nick));
+				binds[n++] = Bind(":nick", optarg, 0);
+			}
+			break; case 'p': {
+				queryAdd(SQL(AND contexts.query = :query));
+				binds[n++] = Bind(":query", NULL, 0);
+			}
+			break; case 'q': {
+				queryAdd(SQL(AND contexts.query = :query));
+				binds[n++] = Bind(":query", NULL, 1);
+			}
+			break; case 's': {
+				sort = true;
+			}
+			break; case 't': {
+				queryAdd(SQL(AND events.type = :type));
+				binds[n++] = Bind(":type", NULL, parseType(optarg));
+			}
+			break; case 'u': {
+				queryAdd(SQL(AND names.user = :user));
+				binds[n++] = Bind(":user", optarg, 0);
+			}
+			break; case 'v': {
+				verbose = true;
+			}
+			break; case 'w': {
+				queryAdd("AND");
+				queryAdd(optarg);
+			}
+			break; default: return EX_USAGE;
 		}
 	}
-	if (optind < argc) search = argv[optind];
+	if (optind < argc) {
+		queryAdd(SQL(search MATCH :search));
+		binds[n++] = Bind(":search", argv[optind], 0);
+	}
+	if (limit) {
+		queryAdd(SQL(ORDER BY time DESC, event DESC LIMIT :limit));
+		binds[n++] = Bind(":limit", limit, 0);
+	}
 
 	dbFind(path, SQLITE_OPEN_READWRITE);
 	if (dbVersion() != DatabaseVersion) {
@@ -443,28 +495,24 @@ int main(int argc, char *argv[]) {
 		err(EX_UNAVAILABLE, "sqlite3");
 	}
 
-	char sql[4096];
-	int len = snprintf(
-		sql, sizeof(sql),
-		SQL(
-			WITH results AS (
-				%s AND %s AND %s
-				%s
-			)
-			SELECT * FROM results %s %s %s;
-		),
-		Query, (search ? Search : "true"), (where ? where : "true"),
-		(limit ? Limit : ""),
-		(sort ? "ORDER BY" : ""),
-		(group ? "network, context," : ""),
-		(sort ? "time, event" : "")
-	);
-	assert((size_t)len < sizeof(sql));
+	sqlite3_stmt *stmt;
+	if (sort) {
+		char outer[4096];
+		snprintf(
+			outer, sizeof(outer),
+			SQL(
+				WITH results AS (%s)
+				SELECT * FROM results
+				ORDER BY %s time, event;
+			),
+			query, (group ? "network, context," : "")
+		);
+		stmt = dbPrepare(outer);
+	} else {
+		queryAdd(";");
+		stmt = dbPrepare(query);
+	}
 
-	if (search) binds[n++] = Bind(":search", search, 0);
-	if (limit) binds[n++] = Bind(":limit", limit, 0);
-
-	sqlite3_stmt *stmt = dbPrepare(sql);
 	for (int i = 0; i < n; ++i) {
 		if (binds[i].text) {
 			dbBindText(stmt, binds[i].param, binds[i].text);
@@ -472,7 +520,6 @@ int main(int argc, char *argv[]) {
 			dbBindInt(stmt, binds[i].param, binds[i].value);
 		}
 	}
-
 	if (format == formatColor) {
 		dbBindText(stmt, ":open", "\33[7m");
 		dbBindText(stmt, ":close", "\33[27m");
