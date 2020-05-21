@@ -495,7 +495,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (tty) {
+		const char *shell = getenv("SHELL");
 		const char *pager = getenv("PAGER");
+		if (!shell) shell = "/bin/sh";
 		if (!pager) pager = "less";
 		setenv("LESS", "FRX", 0);
 
@@ -510,8 +512,8 @@ int main(int argc, char *argv[]) {
 			dup2(rw[0], STDIN_FILENO);
 			close(rw[0]);
 			close(rw[1]);
-			execlp(pager, pager, NULL);
-			err(EX_CONFIG, "%s", pager);
+			execl(shell, shell, "-c", pager, NULL);
+			err(EX_CONFIG, "%s", shell);
 		}
 
 		dup2(rw[1], STDOUT_FILENO);
