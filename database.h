@@ -123,7 +123,7 @@ static inline void dbFind(char *path, int flags) {
 		dataDirs += len;
 		if (*dataDirs) dataDirs++;
 	}
-	errx(EX_NOINPUT, "database not found");
+	errx(EX_NOINPUT, "database not found; initialize it with litterbox -i");
 }
 
 static struct Persist {

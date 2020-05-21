@@ -793,17 +793,12 @@ int main(int argc, char *argv[]) {
 		dbInit();
 		return EX_OK;
 	}
-	if (migrate) {
-		dbMigrate();
-		return EX_OK;
-	}
 	if (backup) {
 		dbBackup(backup);
 		return EX_OK;
 	}
-	if (dbVersion() != DatabaseVersion) {
-		errx(EX_CONFIG, "database out of date; migrate with -m");
-	}
+	dbMigrate();
+	if (migrate) return EX_OK;
 	createJoins();
 
 	if (!host) errx(EX_USAGE, "host required");
