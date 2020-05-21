@@ -12,6 +12,7 @@ CFLAGS += -D'SQLITE3_BIN="$(pkg-config --variable=exec_prefix sqlite3)/bin/sqlit
 LDFLAGS += $(pkg-config --libs-only-L $libs)
 LDLIBS = $(pkg-config --libs-only-l sqlite3)
 LDLIBS.litterbox = $(pkg-config --libs-only-l $libs)
+INSTALLS =
 EOF
 
 if [ "$(uname)" = 'Linux' ]; then
