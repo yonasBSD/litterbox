@@ -323,7 +323,6 @@ static inline void dbInit(void) {
 static const char *MigrationSQL[] = {
 	// Added columnsize = 0 option.
 	SQL(
-		BEGIN TRANSACTION;
 		DROP TABLE search;
 		CREATE VIRTUAL TABLE search USING fts5 (
 			network, channel, query, nick, user, target, message,
@@ -336,11 +335,9 @@ static const char *MigrationSQL[] = {
 			rowid, network, channel, query, nick, user, target, message
 		) SELECT * FROM text;
 		PRAGMA user_version = 1;
-		COMMIT TRANSACTION;
 	),
 
 	SQL(
-		BEGIN TRANSACTION;
 		CREATE TABLE consumers (
 			host STRING NOT NULL,
 			port INTEGER NOT NULL,
@@ -348,14 +345,15 @@ static const char *MigrationSQL[] = {
 			UNIQUE (host, port)
 		);
 		PRAGMA user_version = 2;
-		COMMIT TRANSACTION;
 	),
 };
 
 static inline void dbMigrate(void) {
+	dbExec(SQL(BEGIN TRANSACTION;));
 	for (int version = dbVersion(); version < DatabaseVersion; ++version) {
 		dbExec(MigrationSQL[version]);
 	}
+	dbExec(SQL(COMMIT TRANSACTION;));
 }
 
 static inline void dbBackup(const char *path) {
