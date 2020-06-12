@@ -213,21 +213,13 @@ static struct {
 	size_t cap, len;
 } motd;
 
-static void handleReplyMOTDStart(struct Message *msg) {
-	(void)msg;
-	motd.len = 0;
-	motd.cap = 80;
-	motd.buf = malloc(motd.cap);
-	if (!motd.buf) err(EX_OSERR, "malloc");
-}
-
 static void handleReplyMOTD(struct Message *msg) {
 	require(msg, false, 2);
 	char *line = msg->params[1];
 	if (!strncmp(line, "- ", 2)) line += 2;
 	size_t len = strlen(line);
 	if (motd.len + len + 1 > motd.cap) {
-		motd.cap *= 2;
+		motd.cap = (motd.cap ? motd.cap * 2 : len + 1);
 		motd.buf = realloc(motd.buf, motd.cap);
 		if (!motd.buf) err(EX_OSERR, "realloc");
 	}
@@ -674,7 +666,6 @@ static const struct Handler {
 	{ "332", true, handleReplyTopic },
 	{ "353", true, handleReplyNames },
 	{ "372", false, handleReplyMOTD },
-	{ "375", false, handleReplyMOTDStart },
 	{ "376", true, handleReplyEndOfMOTD },
 	{ "900", false, handleReplyLoggedIn },
 	{ "904", false, handleErrorSASLFail },
