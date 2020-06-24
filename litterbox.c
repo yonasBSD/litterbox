@@ -69,7 +69,7 @@ static void format(const char *format, ...) {
 	clientWrite(buf, len);
 }
 
-enum { ParamCap = 15 };
+enum { ParamCap = 254 };
 struct Message {
 	size_t pos;
 	char *time;
@@ -691,19 +691,19 @@ static int compar(const void *cmd, const void *_handler) {
 	return strcmp(cmd, handler->cmd);
 }
 
-static void handle(struct Message msg) {
-	if (!msg.cmd) return;
+static void handle(struct Message *msg) {
+	if (!msg->cmd) return;
 	const struct Handler *handler = bsearch(
-		msg.cmd, Handlers, ARRAY_LEN(Handlers), sizeof(*handler), compar
+		msg->cmd, Handlers, ARRAY_LEN(Handlers), sizeof(*handler), compar
 	);
 	if (!handler) return;
 	if (handler->transaction) {
 		dbExec(SQL(BEGIN TRANSACTION;));
-		handler->fn(&msg);
-		if (msg.pos) updateConsumer(msg.pos);
+		handler->fn(msg);
+		if (msg->pos) updateConsumer(msg->pos);
 		dbExec(SQL(COMMIT TRANSACTION;));
 	} else {
-		handler->fn(&msg);
+		handler->fn(msg);
 	}
 }
 
@@ -885,7 +885,8 @@ int main(int argc, char *argv[]) {
 			char *crlf = memmem(line, &buf[len] - line, "\r\n", 2);
 			if (!crlf) break;
 			crlf[0] = '\0';
-			handle(parse(line));
+			struct Message msg = parse(line);
+			handle(&msg);
 			line = crlf + 2;
 		}
 		len -= line - buf;
