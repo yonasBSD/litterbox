@@ -402,7 +402,8 @@ int main(int argc, char *argv[]) {
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': {
-				append(where, SQL(AND date(events.time) = date(:date)));
+				append(where, SQL(AND events.time >= date(:date)));
+				append(where, SQL(AND events.time < date(:date, '+1 day')));
 				binds[n++] = Bind(":date", optarg, 0);
 			}
 			break; case 'F': {
