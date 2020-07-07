@@ -37,6 +37,9 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+// Curse you, macOS.
+#define select select_
+
 #include "database.h"
 
 #ifndef SQLITE3_BIN
@@ -320,8 +323,9 @@ static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
 	sqlite3_result_int(ctx, !error);
 }
 
-static char query[4096] = SQL(
+static char select[4096] = SQL(
 	SELECT
+		events.event,
 		contexts.network,
 		contexts.name AS context,
 		CASE WHEN :local THEN
@@ -341,18 +345,23 @@ static char query[4096] = SQL(
 		names.user,
 		names.host,
 		events.target,
-		highlight(search, 6, :open, :close),
-		events.event
+);
+
+enum { QueryCap = 4096 };
+
+static char from[QueryCap] = SQL(
 	FROM events
 	JOIN contexts USING (context)
 	JOIN names USING (name)
-	JOIN search ON search.rowid = events.event
+);
+
+static char where[QueryCap] = SQL(
 	WHERE true
 );
 
-static void queryAdd(const char *sql) {
+static void append(char query[static QueryCap], const char *sql) {
 	size_t len = strlen(query);
-	snprintf(&query[len], sizeof(query) - len, " %s", sql);
+	snprintf(&query[len], QueryCap - len, " %s", sql);
 }
 
 static struct Bind {
@@ -393,7 +402,7 @@ int main(int argc, char *argv[]) {
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': {
-				queryAdd(SQL(AND date(events.time) = date(:date)));
+				append(where, SQL(AND date(events.time) = date(:date)));
 				binds[n++] = Bind(":date", optarg, 0);
 			}
 			break; case 'F': {
@@ -403,26 +412,26 @@ int main(int argc, char *argv[]) {
 				binds[n++] = Bind(":local", NULL, 1);
 			}
 			break; case 'N': {
-				queryAdd(SQL(AND contexts.network = :network));
+				append(where, SQL(AND contexts.network = :network));
 				binds[n++] = Bind(":network", optarg, 0);
 			}
 			break; case 'S': {
 				shell = true;
 			}
 			break; case 'T': {
-				queryAdd(SQL(AND events.target = :target));
+				append(where, SQL(AND events.target = :target));
 				binds[n++] = Bind(":target", optarg, 0);
 			}
 			break; case 'a': {
-				queryAdd(SQL(AND events.time >= datetime(:after)));
+				append(where, SQL(AND events.time >= datetime(:after)));
 				binds[n++] = Bind(":after", optarg, 0);
 			}
 			break; case 'b': {
-				queryAdd(SQL(AND events.time < datetime(:before)));
+				append(where, SQL(AND events.time < datetime(:before)));
 				binds[n++] = Bind(":before", optarg, 0);
 			}
 			break; case 'c': {
-				queryAdd(SQL(AND contexts.name = :context));
+				append(where, SQL(AND contexts.name = :context));
 				binds[n++] = Bind(":context", optarg, 0);
 			}
 			break; case 'd': {
@@ -436,7 +445,7 @@ int main(int argc, char *argv[]) {
 				sort = true;
 			}
 			break; case 'h': {
-				queryAdd(SQL(AND names.host = :host));
+				append(where, SQL(AND names.host = :host));
 				binds[n++] = Bind(":host", optarg, 0);
 			}
 			break; case 'l': {
@@ -444,48 +453,62 @@ int main(int argc, char *argv[]) {
 				sort = true;
 			}
 			break; case 'm': {
-				queryAdd(SQL(AND events.message REGEXP :regexp));
+				append(where, SQL(AND events.message REGEXP :regexp));
 				binds[n++] = Bind(":regexp", optarg, 0);
 			}
 			break; case 'n': {
-				queryAdd(SQL(AND names.nick = :nick));
+				append(where, SQL(AND names.nick = :nick));
 				binds[n++] = Bind(":nick", optarg, 0);
 			}
 			break; case 'p': {
-				queryAdd(SQL(AND contexts.query = :query));
+				append(where, SQL(AND contexts.query = :query));
 				binds[n++] = Bind(":query", NULL, 0);
 			}
 			break; case 'q': {
-				queryAdd(SQL(AND contexts.query = :query));
+				append(where, SQL(AND contexts.query = :query));
 				binds[n++] = Bind(":query", NULL, 1);
 			}
 			break; case 's': {
 				sort = true;
 			}
 			break; case 't': {
-				queryAdd(SQL(AND events.type = :type));
+				append(where, SQL(AND events.type = :type));
 				binds[n++] = Bind(":type", NULL, parseType(optarg));
 			}
 			break; case 'u': {
-				queryAdd(SQL(AND names.user = :user));
+				append(where, SQL(AND names.user = :user));
 				binds[n++] = Bind(":user", optarg, 0);
 			}
 			break; case 'v': {
 				verbose = true;
 			}
 			break; case 'w': {
-				queryAdd("AND");
-				queryAdd(optarg);
+				append(where, "AND");
+				append(where, optarg);
 			}
 			break; default: return EX_USAGE;
 		}
 	}
+
 	if (optind < argc) {
-		queryAdd(SQL(AND search MATCH :search));
+		append(select, SQL(highlight(search, 6, :open, :close)));
+		append(from, SQL(JOIN search ON search.rowid = events.event));
+		append(where, SQL(AND search MATCH :search));
 		binds[n++] = Bind(":search", argv[optind], 0);
+		if (format == formatColor) {
+			binds[n++] = Bind(":open", "\33[7m", 0);
+			binds[n++] = Bind(":close", "\33[27m", 0);
+		} else {
+			// XXX: If you leave these NULL fts5 segfaults...
+			binds[n++] = Bind(":open", "", 0);
+			binds[n++] = Bind(":close", "", 0);
+		}
+	} else {
+		append(select, SQL(events.message));
 	}
+
 	if (limit) {
-		queryAdd(SQL(ORDER BY time DESC, event DESC LIMIT :limit));
+		append(where, SQL(ORDER BY time DESC, event DESC LIMIT :limit));
 		binds[n++] = Bind(":limit", limit, 0);
 	}
 
@@ -507,22 +530,21 @@ int main(int argc, char *argv[]) {
 	}
 
 	sqlite3_stmt *stmt;
+	char query[QueryCap];
 	if (sort) {
-		char outer[4096];
 		snprintf(
-			outer, sizeof(outer),
+			query, sizeof(query),
 			SQL(
-				WITH results AS (%s)
+				WITH results AS (%s %s %s)
 				SELECT * FROM results
 				ORDER BY %s time, event;
 			),
-			query, (group ? "network, context," : "")
+			select, from, where, (group ? "network, context," : "")
 		);
-		stmt = dbPrepare(outer);
 	} else {
-		queryAdd(";");
-		stmt = dbPrepare(query);
+		snprintf(query, sizeof(query), "%s %s %s;", select, from, where);
 	}
+	stmt = dbPrepare(query);
 
 	for (int i = 0; i < n; ++i) {
 		if (binds[i].text) {
@@ -530,14 +552,6 @@ int main(int argc, char *argv[]) {
 		} else {
 			dbBindInt(stmt, binds[i].param, binds[i].value);
 		}
-	}
-	if (format == formatColor) {
-		dbBindText(stmt, ":open", "\33[7m");
-		dbBindText(stmt, ":close", "\33[27m");
-	} else {
-		// XXX: If you leave these NULL fts5 segfaults...
-		dbBindText(stmt, ":open", "");
-		dbBindText(stmt, ":close", "");
 	}
 
 	if (verbose) {
@@ -578,15 +592,15 @@ int main(int argc, char *argv[]) {
 	int result;
 	while (SQLITE_ROW == (result = sqlite3_step(stmt))) {
 		struct Event event = {
-			.network = (const char *)sqlite3_column_text(stmt, 0),
-			.context = (const char *)sqlite3_column_text(stmt, 1),
-			.time    = (const char *)sqlite3_column_text(stmt, 2),
-			.type    = sqlite3_column_int(stmt, 3),
-			.nick    = (const char *)sqlite3_column_text(stmt, 4),
-			.user    = (const char *)sqlite3_column_text(stmt, 5),
-			.host    = (const char *)sqlite3_column_text(stmt, 6),
-			.target  = (const char *)sqlite3_column_text(stmt, 7),
-			.message = (const char *)sqlite3_column_text(stmt, 8),
+			.network = (const char *)sqlite3_column_text(stmt, 1),
+			.context = (const char *)sqlite3_column_text(stmt, 2),
+			.time    = (const char *)sqlite3_column_text(stmt, 3),
+			.type    = sqlite3_column_int(stmt, 4),
+			.nick    = (const char *)sqlite3_column_text(stmt, 5),
+			.user    = (const char *)sqlite3_column_text(stmt, 6),
+			.host    = (const char *)sqlite3_column_text(stmt, 7),
+			.target  = (const char *)sqlite3_column_text(stmt, 8),
+			.message = (const char *)sqlite3_column_text(stmt, 9),
 		};
 		if (!event.target) event.target = "";
 		if (!event.message) event.message = "";
