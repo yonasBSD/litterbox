@@ -404,8 +404,9 @@ int main(int argc, char *argv[]) {
 				append(
 					where,
 					SQL(
-						AND events.time >= strftime('%s', :date)
-						AND events.time < strftime('%s', :date, '+1 day')
+						AND events.time >= strftime('%s', :date, 'start of day')
+						AND events.time
+							< strftime('%s', :date, 'start of day', '+1 day')
 					)
 				);
 				binds[n++] = Bind(":date", optarg, 0);
