@@ -263,8 +263,8 @@ static void prepareInsert(void) {
 		SELECT
 			// SQLite expects a colon in the timezine, but ISO8601 does not.
 			CASE WHEN :time LIKE '%Z'
-				THEN datetime(:time)
-				ELSE datetime(substr(:time, 1, 22) || ':' || substr(:time, -2))
+				THEN strftime('%s', :time)
+				ELSE strftime('%s', substr(:time, 1, 22) || ':' || substr(:time, -2))
 			END,
 			:type, context, names.name, :target, :message
 		FROM contexts, names

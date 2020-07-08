@@ -42,7 +42,7 @@
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 
-enum { DatabaseVersion = 3 };
+enum { DatabaseVersion = 4 };
 
 #define ENUM_TYPE \
 	X(Privmsg, "privmsg") \
@@ -323,7 +323,7 @@ static const char *InitSQL = SQL(
 		UNIQUE (host, port)
 	);
 
-	PRAGMA user_version = 3;
+	PRAGMA user_version = 4;
 
 	COMMIT TRANSACTION;
 );
@@ -362,6 +362,13 @@ static const char *MigrationSQL[] = {
 	SQL(
 		CREATE INDEX eventsTime ON events (time);
 		PRAGMA user_version = 3;
+	),
+
+	SQL(
+		UPDATE motds SET time = strftime('%s', time);
+		UPDATE topics SET time = strftime('%s', time);
+		UPDATE events SET time = strftime('%s', time);
+		PRAGMA user_version = 4;
 	),
 };
 

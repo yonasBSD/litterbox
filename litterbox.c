@@ -231,7 +231,7 @@ static void handleReplyMOTD(struct Message *msg) {
 static void handleReplyEndOfMOTD(struct Message *msg) {
 	const char *sql = SQL(
 		INSERT OR IGNORE INTO motds (time, network, motd)
-		VALUES (coalesce(datetime(:time), datetime('now')), :network, :motd);
+		VALUES (strftime('%s', coalesce(:time, 'now')), :network, :motd);
 	);
 	sqlite3_stmt *stmt = dbPrepare(sql);
 	dbBindText(stmt, ":time", msg->time);
@@ -253,7 +253,7 @@ static void querySearch(struct Message *msg) {
 		WITH results AS (
 			SELECT
 				contexts.name AS context,
-				strftime('%Y-%m-%dT%H:%M:%SZ', events.time) AS time,
+				strftime('%Y-%m-%dT%H:%M:%SZ', events.time, 'unixepoch') AS time,
 				events.type,
 				names.nick,
 				names.user,
@@ -377,7 +377,7 @@ static void insertEvent(
 	const char *sql = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
 		SELECT
-			coalesce(datetime(:time), datetime('now')),
+			strftime('%s', coalesce(:time, 'now')),
 			:type, context, names.name, :target, :message
 		FROM contexts, names
 		WHERE contexts.network = :network
@@ -435,7 +435,7 @@ static void insertTopic(
 	static sqlite3_stmt *stmt;
 	const char *sql = SQL(
 		INSERT OR IGNORE INTO topics (time, context, topic)
-		SELECT coalesce(datetime(:time), datetime('now')), context, :topic
+		SELECT strftime('%s', coalesce(:time, 'now')), context, :topic
 		FROM contexts WHERE network = :network AND name = :context;
 	);
 	dbPersist(&stmt, sql);
@@ -546,7 +546,7 @@ static void insertEvents(
 	const char *sql = SQL(
 		INSERT INTO events (time, type, context, name, target, message)
 		SELECT
-			coalesce(datetime(:time), datetime('now')),
+			strftime('%s', coalesce(:time, 'now')),
 			:type, context, names.name, :target, :message
 		FROM joins, contexts, names
 		WHERE joins.nick = :nick

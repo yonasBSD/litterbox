@@ -331,13 +331,12 @@ static char select[4096] = SQL(
 		CASE WHEN :local THEN
 			strftime(
 				coalesce(:format, '%Y-%m-%dT%H:%M:%S'),
-				events.time,
-				'localtime'
+				events.time, 'unixepoch', 'localtime'
 			)
 		ELSE
 			strftime(
 				coalesce(:format, '%Y-%m-%dT%H:%M:%SZ'),
-				events.time
+				events.time, 'unixepoch'
 			)
 		END AS time,
 		events.type,
@@ -402,8 +401,13 @@ int main(int argc, char *argv[]) {
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': {
-				append(where, SQL(AND events.time >= date(:date)));
-				append(where, SQL(AND events.time < date(:date, '+1 day')));
+				append(
+					where,
+					SQL(
+						AND events.time >= strftime('%s', :date)
+						AND events.time < strftime('%s', :date, '+1 day')
+					)
+				);
 				binds[n++] = Bind(":date", optarg, 0);
 			}
 			break; case 'F': {
@@ -424,11 +428,11 @@ int main(int argc, char *argv[]) {
 				binds[n++] = Bind(":target", optarg, 0);
 			}
 			break; case 'a': {
-				append(where, SQL(AND events.time >= datetime(:after)));
+				append(where, SQL(AND events.time >= strftime('%s', :after)));
 				binds[n++] = Bind(":after", optarg, 0);
 			}
 			break; case 'b': {
-				append(where, SQL(AND events.time < datetime(:before)));
+				append(where, SQL(AND events.time < strftime('%s', :before)));
 				binds[n++] = Bind(":before", optarg, 0);
 			}
 			break; case 'c': {
