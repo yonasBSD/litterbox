@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
 	const char *limit = NULL;
 
 	int n = 0;
-	struct Bind binds[argc];
+	struct Bind binds[argc + 2];
 	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
