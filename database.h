@@ -360,7 +360,9 @@ static const char *MigrationSQL[] = {
 	),
 
 	SQL(
-		CREATE INDEX eventsTime ON events (time);
+		// When migrating from version 2, wait to create index until after
+		// times are converted in version 4.
+		// CREATE INDEX eventsTime ON events (time);
 		PRAGMA user_version = 3;
 	),
 
@@ -368,6 +370,7 @@ static const char *MigrationSQL[] = {
 		UPDATE motds SET time = strftime('%s', time);
 		UPDATE topics SET time = strftime('%s', time);
 		UPDATE events SET time = strftime('%s', time);
+		CREATE INDEX IF NOT EXISTS eventsTime ON events (time);
 		PRAGMA user_version = 4;
 	),
 };
