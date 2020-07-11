@@ -42,7 +42,7 @@
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 
-enum { DatabaseVersion = 4 };
+enum { DatabaseVersion = 5 };
 
 #define ENUM_TYPE \
 	X(Privmsg, "privmsg") \
@@ -282,7 +282,7 @@ static const char *InitSQL = SQL(
 		target TEXT,
 		message TEXT
 	);
-	CREATE INDEX eventsTime ON events (time);
+	CREATE INDEX eventsContextTime ON events (context, time);
 
 	CREATE VIEW text (
 		event, network, channel, query, nick, user, target, message
@@ -323,7 +323,7 @@ static const char *InitSQL = SQL(
 		UNIQUE (host, port)
 	);
 
-	PRAGMA user_version = 4;
+	PRAGMA user_version = 5;
 
 	COMMIT TRANSACTION;
 );
@@ -370,8 +370,16 @@ static const char *MigrationSQL[] = {
 		UPDATE motds SET time = strftime('%s', time);
 		UPDATE topics SET time = strftime('%s', time);
 		UPDATE events SET time = strftime('%s', time);
-		CREATE INDEX IF NOT EXISTS eventsTime ON events (time);
+		// Don't bother creating the index that will be immediately dropped in
+		// version 5.
+		// CREATE INDEX IF NOT EXISTS eventsTime ON events (time);
 		PRAGMA user_version = 4;
+	),
+
+	SQL(
+		DROP INDEX IF EXISTS eventsTime;
+		CREATE INDEX eventsContextTime ON events (context, time);
+		PRAGMA user_version = 5;
 	),
 };
 
