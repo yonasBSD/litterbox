@@ -243,6 +243,28 @@ static void handleReplyEndOfMOTD(struct Message *msg) {
 	memset(&motd, 0, sizeof(motd));
 }
 
+static char *scooperURL;
+
+static void urlEncode(const char *str) {
+	static const char *Safe = {
+		"$-_.+!*'(),"
+		"0123456789"
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+	};
+	while (*str) {
+		size_t len = strspn(str, Safe);
+		if (len) clientWrite(str, len);
+		str += len;
+		if (*str == ' ') {
+			clientWrite("+", 1);
+			str++;
+		} else if (*str) {
+			format("%%%02X", *str++);
+		}
+	}
+}
+
 static int color(const char *user) {
 	return 2 + hash(user) % 74;
 }
@@ -338,6 +360,12 @@ static void querySearch(struct Message *msg) {
 		} else {
 			warnx("%s", sqlite3_errmsg(db));
 		}
+	} else if (scooperURL) {
+		format("NOTICE %s :%s/search?network=", msg->nick, scooperURL);
+		urlEncode(network);
+		format("&query=");
+		urlEncode(msg->params[1]);
+		format("\r\n");
 	}
 
 	sqlite3_reset(stmt);
@@ -738,6 +766,7 @@ int main(int argc, char *argv[]) {
 		{ .val = '!', .name = "insecure", no_argument },
 		{ .val = 'N', .name = "network", required_argument },
 		{ .val = 'Q', .name = "public-query", no_argument },
+		{ .val = 'U', .name = "scooper-url", required_argument },
 		{ .val = 'b', .name = "backup", required_argument },
 		{ .val = 'c', .name = "cert", required_argument },
 		{ .val = 'd', .name = "database", required_argument },
@@ -766,6 +795,7 @@ int main(int argc, char *argv[]) {
 			break; case '!': insecure = true;
 			break; case 'N': defaultNetwork = optarg;
 			break; case 'Q': searchQuery = Public;
+			break; case 'U': scooperURL = optarg;
 			break; case 'b': backup = optarg;
 			break; case 'c': cert = optarg;
 			break; case 'd': path = optarg;
@@ -785,6 +815,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	if (!user) user = nick;
+	if (scooperURL && scooperURL[0]) {
+		size_t len = strlen(scooperURL);
+		if (scooperURL[len - 1] == '/') scooperURL[len - 1] = '\0';
+	}
 
 	int flags = SQLITE_OPEN_READWRITE;
 	if (init) flags |= SQLITE_OPEN_CREATE;

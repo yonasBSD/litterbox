@@ -1,4 +1,4 @@
-.Dd May 21, 2020
+.Dd July 19, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -10,6 +10,7 @@
 .Nm
 .Op Fl Qqv
 .Op Fl N Ar network
+.Op Fl U Ar url
 .Op Fl c Ar cert
 .Op Fl d Ar path
 .Op Fl h Ar host
@@ -112,6 +113,16 @@ The searchable columns are
 .Li message .
 For search query syntax, see
 .Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
+.
+.It Fl U Ar url , Cm scooper-url = Ar url
+Set the base URL of a
+.Xr scooper 1
+instance
+used to construct links to full search results
+in response to the search query interface enabled by
+.Fl Q
+or
+.Fl q .
 .
 .It Fl b Ar path
 Perform a live database backup to
