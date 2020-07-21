@@ -1,4 +1,4 @@
-.Dd July  8, 2020
+.Dd July 21, 2020
 .Dt README 7
 .Os "Causal Agency"
 .
@@ -13,9 +13,19 @@ It logs events from IRC in a SQLite database,
 indexing messages for full-text search.
 It is intended for use with
 the IRC bouncer
-.Xr pounce 1 ,
+.Lk https://git.causal.agency/pounce pounce ,
 but can also be used independently
 as a logging bot.
+.
+.Pp
+.Nm
+provides the
+.Xr scoop 1
+command-line query utility.
+A web interface for
+.Nm
+is provided by
+.Lk https://git.causal.agency/scooper scooper .
 .
 .Sh INSTALLING
 .Nm
@@ -77,13 +87,18 @@ For sending patches by email, see
 .Xr scoop 1 ,
 .Xr unscoop 1
 .
-.Pp
+.Bl -item
+.It
 IRC bouncer:
-.Lk https://git.causal.agency/pounce "pounce"
-.
+.Lk https://git.causal.agency/pounce pounce
+.It
+Web interface:
+.Lk https://git.causal.agency/scooper scooper
+.It
 .Rs
 .%A June Bug
 .%T IRC Suite
 .%U https://text.causal.agency/010-irc-suite.txt
 .%D June 19, 2020
 .Re
+.El
