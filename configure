@@ -1,22 +1,54 @@
 #!/bin/sh
 set -eu
 
+cflags() {
+	echo "CFLAGS += $*"
+}
+ldlibs() {
+	echo "LDLIBS ${o:-}= $*"
+	o=+
+}
+config() {
+	pkg-config --print-errors "$@"
+	cflags $(pkg-config --cflags "$@")
+	ldlibs $(pkg-config --libs "$@")
+}
+defstr() {
+	cflags "-D'$1=\"$2\"'"
+}
+defvar() {
+	defstr "$1" "$(pkg-config --variable=$3 $2)${4:-}"
+}
+
 exec >config.mk
 
-libs='libtls sqlite3'
-pkg-config --print-errors $libs
+for opt; do
+	case "${opt}" in
+		(--prefix=*) echo "PREFIX = ${opt#*=}" ;;
+		(--mandir=*) echo "MANDIR = ${opt#*=}" ;;
+		(--sysconfdir=*) echo "ETCDIR = ${opt#*=}" ;;
+		(*) echo "warning: unsupported option ${opt}" >&2 ;;
+	esac
+done
 
-cat <<EOF
-CFLAGS += $(pkg-config --cflags $libs)
-CFLAGS += -D'SQLITE3_BIN="$(pkg-config --variable=exec_prefix sqlite3)/bin/sqlite3"'
-LDFLAGS += $(pkg-config --libs-only-L $libs)
-LDLIBS = $(pkg-config --libs-only-l sqlite3)
-LDLIBS.litterbox = $(pkg-config --libs-only-l $libs)
-INSTALLS =
-EOF
-
-if [ "$(uname)" = 'Linux' ]; then
-	cat <<-EOF
-	CFLAGS += -D_GNU_SOURCE
-	EOF
-fi
+case "$(uname)" in
+	(FreeBSD)
+		config sqlite3 libtls
+		defvar SQLITE3_BIN sqlite3 exec_prefix /bin/sqlite3
+		echo 'INSTALLS = install-rcs'
+		;;
+	(OpenBSD)
+		ldlibs -ltls
+		config sqlite3
+		defvar SQLITE3_BIN sqlite3 exec_prefix /bin/sqlite3
+		;;
+	(Linux)
+		cflags -D_GNU_SOURCE
+		config sqlite3 libtls
+		defvar SQLITE3_BIN sqlite3 exec_prefix /bin/sqlite3
+		;;
+	(*)
+		config sqlite3 libtls
+		defvar SQLITE3_BIN sqlite3 exec_prefix /bin/sqlite3
+		;;
+esac

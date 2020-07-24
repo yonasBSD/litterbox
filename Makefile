@@ -2,17 +2,12 @@ PREFIX ?= /usr/local
 MANDIR ?= ${PREFIX}/share/man
 ETCDIR ?= ${PREFIX}/etc
 
-CFLAGS += -I${PREFIX}/include
-LDFLAGS += -L${PREFIX}/lib
-
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
-LDLIBS = -lsqlite3
-LDLIBS.litterbox = -lsqlite3 -ltls
+LDLIBS = -lsqlite3 -ltls
 
 BINS = litterbox scoop unscoop
 MANS = ${BINS:=.1}
 RCS  = rc.d/litterbox
-INSTALLS = install-rcs
 
 -include config.mk
 
@@ -24,7 +19,7 @@ dev: tags all test
 all: ${BINS}
 
 litterbox: ${OBJS.litterbox}
-	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS.$@} -o $@
+	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS} -o $@
 
 .o:
 	${CC} ${LDFLAGS} $< ${LDLIBS} -o $@
