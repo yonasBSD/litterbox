@@ -37,10 +37,10 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-// Curse you, macOS.
-#define select select_
-
 #include "database.h"
+
+// Look I never asked for select(2) to be declared.
+#define select select_
 
 #ifndef SQLITE3_BIN
 #define SQLITE3_BIN "sqlite3"
