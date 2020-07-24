@@ -536,10 +536,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	sqlite3_stmt *stmt;
-	char query[QueryCap];
+	char *query = NULL;
 	if (sort) {
-		snprintf(
-			query, sizeof(query),
+		asprintf(
+			&query,
 			SQL(
 				WITH results AS (%s %s %s)
 				SELECT * FROM results
@@ -548,9 +548,11 @@ int main(int argc, char *argv[]) {
 			select, from, where, (group ? "network, context," : "")
 		);
 	} else {
-		snprintf(query, sizeof(query), "%s %s %s;", select, from, where);
+		asprintf(&query, "%s %s %s;", select, from, where);
 	}
+	if (!query) err(EX_OSERR, "asprintf");
 	stmt = dbPrepare(query);
+	free(query);
 
 	for (int i = 0; i < n; ++i) {
 		if (binds[i].text) {
