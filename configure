@@ -26,7 +26,6 @@ for opt; do
 	case "${opt}" in
 		(--prefix=*) echo "PREFIX = ${opt#*=}" ;;
 		(--mandir=*) echo "MANDIR = ${opt#*=}" ;;
-		(--sysconfdir=*) echo "ETCDIR = ${opt#*=}" ;;
 		(*) echo "warning: unsupported option ${opt}" >&2 ;;
 	esac
 done
