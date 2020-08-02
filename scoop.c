@@ -535,10 +535,10 @@ int main(int argc, char *argv[]) {
 		err(EX_UNAVAILABLE, "sqlite3");
 	}
 
-	sqlite3_stmt *stmt;
+	int len;
 	char *query = NULL;
 	if (sort) {
-		asprintf(
+		len = asprintf(
 			&query,
 			SQL(
 				WITH results AS (%s %s %s)
@@ -548,10 +548,11 @@ int main(int argc, char *argv[]) {
 			select, from, where, (group ? "network, context," : "")
 		);
 	} else {
-		asprintf(&query, "%s %s %s;", select, from, where);
+		len = asprintf(&query, "%s %s %s;", select, from, where);
 	}
-	if (!query) err(EX_OSERR, "asprintf");
-	stmt = dbPrepare(query);
+	if (len < 0) err(EX_OSERR, "asprintf");
+
+	sqlite3_stmt *stmt = dbPrepare(query);
 	free(query);
 
 	for (int i = 0; i < n; ++i) {
