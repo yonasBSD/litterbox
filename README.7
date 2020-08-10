@@ -1,4 +1,4 @@
-.Dd July 24, 2020
+.Dd August 10, 2020
 .Dt README 7
 .Os "Causal Agency"
 .
@@ -29,14 +29,16 @@ is provided by
 .
 .Sh INSTALLING
 .Nm
-targets
+requires SQLite3 and
+.Sy libtls ,
+provided by either
+.Lk https://git.causal.agency/libretls/about LibreTLS
+(for OpenSSL)
+or by LibreSSL.
+It targets
 .Fx ,
 .Ox
-and Linux,
-and requires LibreSSL
-.Pq Fl ltls
-and SQLite
-.Pq Fl lsqite3 .
+and Linux.
 An
 .Xr rc 8
 script for
@@ -50,12 +52,27 @@ sudo make install
 .Ed
 .
 .Pp
-If LibreSSL is installed
-in a non-standard path, set
-.Ev PKG_CONFIG_PATH appropriately.
-For example:
+If installing
+.Sy libtls
+manually to
+.Pa /usr/local ,
+for example,
+make sure
+.Pa /usr/local/lib
+appears in
+.Pa /etc/ld.so.conf
+or
+.Pa /etc/ld.so.conf.d/*
+and be sure to run
+.Xr ldconfig 8
+once the library is installed.
+Set
+.Ev PKG_CONFIG_PATH
+for
+.Nm ./configure
+to find it.
 .Bd -literal -offset indent
-PKG_CONFIG_PATH=/opt/libressl/lib/pkgconfig ./configure
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig ./configure
 .Ed
 .
 .Sh FILES
