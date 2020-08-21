@@ -41,12 +41,8 @@
 #define SQL(...) #__VA_ARGS__
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
-const char *configPath(
-	char *buf, size_t cap, const char **dirs, const char *path
-);
-const char *dataPath(
-	char *buf, size_t cap, const char **dirs, const char *path
-);
+const char *configPath(const char **dirs, const char *path);
+const char *dataPath(const char **dirs, const char *path);
 FILE *configOpen(const char *path, const char *mode);
 FILE *dataOpen(const char *path, const char *mode);
 void dataMkdir(const char *path);
@@ -122,9 +118,8 @@ static inline void dbFind(const char *path, int flags) {
 		dataMkdir("");
 	}
 
-	char buf[PATH_MAX];
 	const char *dirs = NULL;
-	while (NULL != (path = dataPath(buf, sizeof(buf), &dirs, DatabasePath))) {
+	while (NULL != (path = dataPath(&dirs, DatabasePath))) {
 		dbOpen(path, flags);
 		if (db) return;
 	}

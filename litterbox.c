@@ -858,11 +858,9 @@ int main(int argc, char *argv[]) {
 		tls_config_insecure_noverifyname(config);
 	}
 
-	const char *dirs;
-	char pbuf[PATH_MAX];
 	if (cert) {
-		dirs = NULL;
-		while (NULL != (path = configPath(pbuf, sizeof(pbuf), &dirs, cert))) {
+		const char *dirs = NULL;
+		while (NULL != (path = configPath(&dirs, cert))) {
 			if (priv) {
 				error = tls_config_set_cert_file(config, path);
 			} else {
@@ -873,8 +871,8 @@ int main(int argc, char *argv[]) {
 		if (error) errx(EX_NOINPUT, "%s: %s", cert, tls_config_error(config));
 	}
 	if (priv) {
-		dirs = NULL;
-		while (NULL != (path = configPath(pbuf, sizeof(pbuf), &dirs, priv))) {
+		const char *dirs = NULL;
+		while (NULL != (path = configPath(&dirs, priv))) {
 			error = tls_config_set_key_file(config, path);
 			if (!error) break;
 		}
