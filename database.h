@@ -27,6 +27,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdbool.h>
@@ -39,6 +40,20 @@
 
 #define SQL(...) #__VA_ARGS__
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
+
+const char *configPath(
+	char *buf, size_t cap, const char **dirs, const char *path
+);
+const char *dataPath(
+	char *buf, size_t cap, const char **dirs, const char *path
+);
+FILE *configOpen(const char *path, const char *mode);
+FILE *dataOpen(const char *path, const char *mode);
+void dataMkdir(const char *path);
+int getopt_config(
+	int argc, char *const *argv, const char *optstring,
+	const struct option *longopts, int *longindex
+);
 
 #define DATABASE_PATH "litterbox/litterbox.sqlite"
 

@@ -39,11 +39,6 @@
 
 #include "database.h"
 
-int getopt_config(
-	int argc, char *const *argv, const char *optstring,
-	const struct option *longopts, int *longindex
-);
-
 static const char *host;
 static const char *port = "6697";
 static struct tls *client;

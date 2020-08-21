@@ -12,7 +12,7 @@ RCS  = rc.d/litterbox
 -include config.mk
 
 FORMATS = generic catgirl irc textual
-OBJS.litterbox = litterbox.o config.o
+OBJS.litterbox = litterbox.o config.o xdg.o
 
 dev: tags all test
 
