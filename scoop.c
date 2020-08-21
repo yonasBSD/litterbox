@@ -387,8 +387,8 @@ static enum Type parseType(const char *input) {
 int main(int argc, char *argv[]) {
 	bool tty = isatty(STDOUT_FILENO);
 
-	char *path = NULL;
 	bool shell = false;
+	const char *path = NULL;
 	Format *format = (tty ? formatColor : formatPlain);
 
 	bool sort = false;

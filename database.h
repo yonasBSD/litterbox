@@ -55,7 +55,7 @@ int getopt_config(
 	const struct option *longopts, int *longindex
 );
 
-#define DATABASE_PATH "litterbox/litterbox.sqlite"
+static const char *DatabasePath = "litterbox.sqlite";
 
 enum { DatabaseVersion = 5 };
 
@@ -97,15 +97,7 @@ static inline void dbExec(const char *sql) {
 	if (error) errx(EX_SOFTWARE, "%s: %s", sqlite3_errmsg(db), sql);
 }
 
-static inline void dbOpen(char *path, int flags) {
-	char *base = strrchr(path, '/');
-	if (flags & SQLITE_OPEN_CREATE && base) {
-		*base = '\0';
-		int error = mkdir(path, 0700);
-		if (error && errno != EEXIST) err(EX_CANTCREAT, "%s", path);
-		*base = '/';
-	}
-
+static inline void dbOpen(const char *path, int flags) {
 	int error = sqlite3_open_v2(path, &db, flags, NULL);
 	if (error == SQLITE_CANTOPEN) {
 		sqlite3_close(db);
@@ -119,35 +111,22 @@ static inline void dbOpen(char *path, int flags) {
 	dbExec(SQL(PRAGMA foreign_keys = true;));
 }
 
-static inline void dbFind(char *path, int flags) {
+static inline void dbFind(const char *path, int flags) {
 	if (path) {
 		dbOpen(path, flags);
 		if (db) return;
 		errx(EX_NOINPUT, "%s: database not found", path);
 	}
 
-	const char *home = getenv("HOME");
-	const char *dataHome = getenv("XDG_DATA_HOME");
-	const char *dataDirs = getenv("XDG_DATA_DIRS");
+	if (flags & SQLITE_OPEN_CREATE) {
+		dataMkdir("");
+	}
 
 	char buf[PATH_MAX];
-	if (dataHome) {
-		snprintf(buf, sizeof(buf), "%s/" DATABASE_PATH, dataHome);
-	} else {
-		if (!home) errx(EX_CONFIG, "HOME unset");
-		snprintf(buf, sizeof(buf), "%s/.local/share/" DATABASE_PATH, home);
-	}
-	dbOpen(buf, flags);
-	if (db) return;
-
-	if (!dataDirs) dataDirs = "/usr/local/share:/usr/share";
-	while (*dataDirs) {
-		size_t len = strcspn(dataDirs, ":");
-		snprintf(buf, sizeof(buf), "%.*s/" DATABASE_PATH, (int)len, dataDirs);
-		dbOpen(buf, flags);
+	const char *dirs = NULL;
+	while (NULL != (path = dataPath(buf, sizeof(buf), &dirs, DatabasePath))) {
+		dbOpen(path, flags);
 		if (db) return;
-		dataDirs += len;
-		if (*dataDirs) dataDirs++;
 	}
 	errx(EX_NOINPUT, "database not found; initialize it with litterbox -i");
 }

@@ -743,9 +743,9 @@ static void quit(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-	char *path = NULL;
 	bool init = false;
 	bool migrate = false;
+	const char *path = NULL;
 	const char *backup = NULL;
 
 	bool insecure = false;

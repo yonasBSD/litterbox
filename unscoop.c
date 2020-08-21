@@ -329,8 +329,8 @@ static void dedupEvents(sqlite3 *db) {
 
 int main(int argc, char *argv[]) {
 	bool test = false;
-	char *path = NULL;
 	bool dedup = false;
+	const char *path = NULL;
 	const char *network = NULL;
 	const char *context = NULL;
 	const struct Format *format = &Formats[0];

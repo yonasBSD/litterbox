@@ -11,18 +11,24 @@ RCS  = rc.d/litterbox
 
 -include config.mk
 
-FORMATS = generic catgirl irc textual
 OBJS.litterbox = litterbox.o config.o xdg.o
+OBJS.scoop = scoop.o xdg.o
+OBJS.unscoop = unscoop.o xdg.o
+
+FORMATS = generic catgirl irc textual
 
 dev: tags all test
 
 all: ${BINS}
 
 litterbox: ${OBJS.litterbox}
-	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS} -o $@
+
+scoop: ${OBJS.scoop}
+
+unscoop: ${OBJS.unscoop}
 
 .o:
-	${CC} ${LDFLAGS} $< ${LDLIBS} -o $@
+	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS} -o $@
 
 ${BINS:=.o}: database.h
 
@@ -41,7 +47,7 @@ tags: *.c *.h
 	ctags -w *.c *.h
 
 clean:
-	rm -f .test tags ${BINS} ${RCS} ${OBJS.litterbox} ${BINS:=.o}
+	rm -f .test tags ${BINS} ${RCS} ${BINS:=.o} config.o xdg.o
 
 install: ${BINS} ${MANS} ${INSTALLS}
 	install -d ${DESTDIR}${PREFIX}/bin ${DESTDIR}${MANDIR}/man1
