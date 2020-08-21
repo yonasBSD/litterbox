@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <err.h>
 #include <getopt.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -857,14 +858,27 @@ int main(int argc, char *argv[]) {
 		tls_config_insecure_noverifyname(config);
 	}
 
+	const char *dirs;
+	char pbuf[PATH_MAX];
 	if (cert) {
-		error = tls_config_set_keypair_file(config, cert, (priv ? priv : cert));
-		if (error) {
-			errx(
-				EX_SOFTWARE, "tls_config_set_keypair_file: %s",
-				tls_config_error(config)
-			);
+		dirs = NULL;
+		while (NULL != (path = configPath(pbuf, sizeof(pbuf), &dirs, cert))) {
+			if (priv) {
+				error = tls_config_set_cert_file(config, path);
+			} else {
+				error = tls_config_set_keypair_file(config, path, path);
+			}
+			if (!error) break;
 		}
+		if (error) errx(EX_NOINPUT, "%s: %s", cert, tls_config_error(config));
+	}
+	if (priv) {
+		dirs = NULL;
+		while (NULL != (path = configPath(pbuf, sizeof(pbuf), &dirs, priv))) {
+			error = tls_config_set_key_file(config, path);
+			if (!error) break;
+		}
+		if (error) errx(EX_NOINPUT, "%s: %s", priv, tls_config_error(config));
 	}
 
 	error = tls_configure(client, config);
