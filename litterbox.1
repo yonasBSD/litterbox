@@ -1,4 +1,4 @@
-.Dd July 19, 2020
+.Dd August 22, 2020
 .Dt LITTERBOX 1
 .Os
 .
@@ -135,6 +135,10 @@ Load the TLS client certificate from
 .Ar path
 and authenticate with SASL EXTERNAL,
 also known as CertFP.
+The
+.Ar path
+is searched for in the same manner
+as configuration files.
 If the private key is in a separate file,
 it is loaded with
 .Fl k .
@@ -158,6 +162,10 @@ Join the comma-separated list of channels
 .It Fl k Ar path , Cm priv = Ar path
 Load the TLS client private key from
 .Ar path .
+The
+.Ar path
+is searched for in the same manner
+as configuration files.
 .
 .It Fl l Ar limit , Cm limit = Ar limit
 Limit the number of results
