@@ -4,6 +4,26 @@
 # REQUIRE: LOGIN
 # KEYWORD: shutdown
 
+# Add the following to /etc/rc.conf to enable litterbox running as a
+# user:
+#
+#     litterbox_enable="YES"
+#     litterbox_user="user"
+#     litterbox_env="HOME=/home/user"
+#
+# The litterbox service supports profiles for running multiple
+# instances. Set litterbox_profiles to a space-separated list of names.
+# Flags for each profile will be set from litterbox_${profile}_flags.
+# For example:
+#
+#     litterbox_profiles="example1 example2"
+#     litterbox_example1_flags="example1.conf"
+#     litterbox_example2_flags="example2.conf"
+#
+# The commands start, stop, etc. will operating on the profile given as
+# an additional argument, or on all profiles without an additional
+# argument.
+
 . /etc/rc.subr
 
 name='litterbox'

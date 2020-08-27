@@ -227,50 +227,6 @@ Log in with the server password
 .Ar pass .
 .El
 .
-.Ss Service Configuration
-On
-.Fx ,
-add the following to
-.Pa /etc/rc.conf
-to enable the
-.Nm
-daemon:
-.Bd -literal -offset indent
-litterbox_enable="YES"
-.Ed
-.
-.Pp
-To use the database and configuration files of a user,
-add the following:
-.Bd -literal -offset indent
-litterbox_user="user"
-litterbox_env="HOME=/home/user"
-.Ed
-.
-.Pp
-The
-.Nm
-service supports profiles
-for running multiple instances.
-Set
-.Va litterbox_profiles
-to a space-separated list of names.
-Flags for each profile will be set from
-.Va litterbox_${profile}_flags .
-For example:
-.Bd -literal -offset indent
-litterbox_profiles="example1 example2"
-litterbox_example1_flags="example1.conf"
-litterbox_example2_flags="example2.conf"
-.Ed
-.
-.Pp
-The commands
-.Cm start , stop ,
-etc.\&
-will operate on the profile given as an additional argument,
-or on all profiles without an additional argument.
-.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $XDG_CONFIG_DIRS/litterbox
