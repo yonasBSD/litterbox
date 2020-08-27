@@ -31,11 +31,6 @@ for opt; do
 done
 
 case "$(uname)" in
-	(FreeBSD)
-		config sqlite3 libtls
-		defvar SQLITE3_BIN sqlite3 exec_prefix /bin/sqlite3
-		echo 'INSTALLS = install-rcs'
-		;;
 	(OpenBSD)
 		ldlibs -ltls
 		config sqlite3

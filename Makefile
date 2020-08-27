@@ -7,13 +7,13 @@ LDLIBS = -lsqlite3 -ltls
 
 BINS = litterbox scoop unscoop
 MANS = ${BINS:=.1}
-RCS  = rc.d/litterbox
 
 -include config.mk
 
 OBJS.litterbox = litterbox.o config.o xdg.o
 OBJS.scoop = scoop.o xdg.o
 OBJS.unscoop = unscoop.o xdg.o
+OBJS = ${OBJS.litterbox} ${OBJS.scoop} ${OBJS.unscoop}
 
 FORMATS = generic catgirl irc textual
 
@@ -30,7 +30,7 @@ unscoop: ${OBJS.unscoop}
 .o:
 	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS} -o $@
 
-${BINS:=.o}: database.h
+${OBJS}: database.h
 
 test: .test
 
@@ -38,27 +38,17 @@ test: .test
 	set -e; for format in ${FORMATS}; do ./unscoop -n -f $$format; done
 	touch .test
 
-.SUFFIXES: .in
-
-.in:
-	sed -e 's|%%PREFIX%%|${PREFIX}|g' $< > $@
-
-tags: *.c *.h
-	ctags -w *.c *.h
+tags: *.[ch]
+	ctags -w *.[ch]
 
 clean:
-	rm -f .test tags ${BINS} ${RCS} ${BINS:=.o} config.o xdg.o
+	rm -f ${BINS} ${OBJS} .test tags
 
-install: ${BINS} ${MANS} ${INSTALLS}
+install: ${BINS} ${MANS}
 	install -d ${DESTDIR}${PREFIX}/bin ${DESTDIR}${MANDIR}/man1
 	install ${BINS} ${DESTDIR}${PREFIX}/bin
 	install -m 644 ${MANS} ${DESTDIR}${MANDIR}/man1
 
-install-rcs: ${RCS}
-	install -d ${DESTDIR}${ETCDIR}/rc.d
-	install ${RCS} ${DESTDIR}${ETCDIR}/rc.d
-
 uninstall:
 	rm -f ${BINS:%=${DESTDIR}${PREFIX}/bin/%}
 	rm -f ${MANS:%=${DESTDIR}${MANDIR}/man1/%}
-	rm -f ${RCS:%=${DESTDIR}${ETCDIR}/%}
