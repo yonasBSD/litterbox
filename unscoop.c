@@ -335,14 +335,14 @@ int main(int argc, char *argv[]) {
 	const char *context = NULL;
 	const struct Format *format = &Formats[0];
 
-	for (int opt; 0 < (opt = getopt(argc, argv, "DN:c:d:f:nv"));) {
+	for (int opt; 0 < (opt = getopt(argc, argv, "!DN:c:d:f:v"));) {
 		switch (opt) {
+			break; case '!': test = true;
 			break; case 'D': dedup = true;
 			break; case 'N': network = optarg;
 			break; case 'c': context = optarg;
 			break; case 'd': path = optarg;
 			break; case 'f': format = formatParse(optarg);
-			break; case 'n': test = true;
 			break; case 'v': verbose = true;
 			break; default:  return EX_USAGE;
 		}

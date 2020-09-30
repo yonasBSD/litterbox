@@ -35,7 +35,7 @@ ${OBJS}: database.h
 test: .test
 
 .test: unscoop
-	set -e; for format in ${FORMATS}; do ./unscoop -n -f $$format; done
+	set -e; for format in ${FORMATS}; do ./unscoop -! -f $$format; done
 	touch .test
 
 tags: *.[ch]
