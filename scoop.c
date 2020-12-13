@@ -159,31 +159,25 @@ static void formatColor(bool group, struct Event e) {
 	printf("[%s] ", e.time);
 
 #define C(x) "\33[%dm" x "\33[m"
+	int c = color(strcmp(e.user, "*") ? e.user : e.nick);
 	switch (e.type) {
-		break; case Privmsg: printf(C("<%s>") " ", color(e.user), e.nick);
-		break; case Notice:  printf(C("-%s-") " ", color(e.user), e.nick);
-		break; case Action:  printf(C("* %s") " ", color(e.user), e.nick);
-		break; case Join: printf(C("%s") " joined", color(e.user), e.nick);
-		break; case Part: printf(C("%s") " parted: ", color(e.user), e.nick);
-		break; case Quit: printf(C("%s") " quit: ", color(e.user), e.nick);
-		break; case Kick: {
-			printf(C("%s") " kicked %s: ", color(e.user), e.nick, e.target);
-		}
+		break; case Privmsg: printf(C("<%s>") " ", c, e.nick);
+		break; case Notice:  printf(C("-%s-") " ", c, e.nick);
+		break; case Action:  printf(C("* %s") " ", c, e.nick);
+		break; case Join: printf(C("%s") " joined", c, e.nick);
+		break; case Part: printf(C("%s") " parted: ", c, e.nick);
+		break; case Quit: printf(C("%s") " quit: ", c, e.nick);
+		break; case Kick: printf(C("%s") " kicked %s: ", c, e.nick, e.target);
 		break; case Nick: {
 			printf(
-				C("%s") " changed nick to " C("%s") "\n",
-				color(e.user), e.nick, color(e.user), e.target
+				C("%s") " changed nick to " C("%s"),
+				c, e.nick,
+				(strcmp(e.user, "*") ? c : color(e.target)), e.target
 			);
 		}
-		break; case Topic: {
-			printf(C("%s") " set the topic: ", color(e.user), e.nick);
-		}
-		break; case Ban: {
-			printf(C("%s") " banned %s", color(e.user), e.nick, e.target);
-		}
-		break; case Unban: {
-			printf(C("%s") " unbanned %s", color(e.user), e.nick, e.target);
-		}
+		break; case Topic: printf(C("%s") " set the topic: ", c, e.nick);
+		break; case Ban:   printf(C("%s") " banned %s", c, e.nick, e.target);
+		break; case Unban: printf(C("%s") " unbanned %s", c, e.nick, e.target);
 	}
 #undef C
 

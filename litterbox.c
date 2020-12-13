@@ -313,6 +313,7 @@ static void querySearch(struct Message *msg) {
 		const char *message = (const char *)sqlite3_column_text(stmt, i++);
 		if (!target) target = "";
 		if (!message) message = "";
+		if (!strcmp(user, "*")) user = nick;
 
 		format("NOTICE %s :(%s) [%s] ", msg->nick, context, time);
 		switch (type) {
