@@ -145,11 +145,18 @@ static void formatColor(bool group, struct Event e) {
 	static char network[256];
 	static char context[256];
 	if (group && (strcmp(e.network, network) || strcmp(e.context, context))) {
-		printf("%s%s/%s:\n", (network[0] ? "\n" : ""), e.network, e.context);
+		printf(
+			"%s\33[%dm%s/%s\33[m:\n",
+			(network[0] ? "\n" : ""),
+			code(color(e.context)), e.network, e.context
+		);
 		snprintf(network, sizeof(network), "%s", e.network);
 		snprintf(context, sizeof(context), "%s", e.context);
 	} else if (!group) {
-		printf("%s/%s: ", e.network, e.context);
+		printf(
+			"\33[%dm%s/%s\33[m: ",
+			code(color(e.context)), e.network, e.context
+		);
 	}
 
 	printf("[%s] ", e.time);
