@@ -64,39 +64,21 @@ static void formatPlain(bool group, struct Event e) {
 	(void)group;
 	printf("%s/%s: [%s] ", e.network, e.context, e.time);
 	switch (e.type) {
-		break; case Privmsg: {
-			printf("<%s> %s\n", e.nick, e.message);
-		}
-		break; case Notice: {
-			printf("-%s- %s\n", e.nick, e.message);
-		}
-		break; case Action: {
-			printf("* %s %s\n", e.nick, e.message);
-		}
-		break; case Join: {
-			printf("%s joined\n", e.nick);
-		}
-		break; case Part: {
-			printf("%s parted: %s\n", e.nick, e.message);
-		}
-		break; case Quit: {
-			printf("%s quit: %s\n", e.nick, e.message);
-		}
-		break; case Kick: {
-			printf("%s kicked %s: %s\n", e.nick, e.target, e.message);
-		}
-		break; case Nick: {
-			printf("%s changed nick to %s\n", e.nick, e.target);
-		}
-		break; case Topic: {
-			printf("%s set the topic: %s\n", e.nick, e.message);
-		}
-		break; case Ban: {
-			printf("%s banned %s\n", e.nick, e.target);
-		}
-		break; case Unban: {
-			printf("%s unbanned %s\n", e.nick, e.target);
-		}
+		break; case Privmsg: printf("<%s> ", e.nick);
+		break; case Notice:  printf("-%s- ", e.nick);
+		break; case Action:  printf("* %s ", e.nick);
+		break; default:      printf("%s ", e.nick);
+	}
+	switch (e.type) {
+		break; case Join:  printf("joined\n");
+		break; case Part:  printf("parted: %s\n", e.message);
+		break; case Quit:  printf("quit: %s\n", e.message);
+		break; case Kick:  printf("kicked %s: %s\n", e.target, e.message);
+		break; case Nick:  printf("changed nick to %s\n", e.target);
+		break; case Topic: printf("set the topic: %s\n", e.message);
+		break; case Ban:   printf("banned %s\n", e.target);
+		break; case Unban: printf("unbanned %s\n", e.target);
+		break; default:    printf("%s\n", e.message);
 	}
 }
 
@@ -156,31 +138,29 @@ static void formatColor(bool group, struct Event e) {
 	} else if (!group) {
 		printf("%s/%s: ", e.network, e.context);
 	}
+
 	printf("[%s] ", e.time);
-
-#define C(x) "\33[%dm" x "\33[m"
-	int c = color(strcmp(e.user, "*") ? e.user : e.nick);
+	printf("\33[%dm", color(strcmp(e.user, "*") ? e.user : e.nick));
 	switch (e.type) {
-		break; case Privmsg: printf(C("<%s>") " ", c, e.nick);
-		break; case Notice:  printf(C("-%s-") " ", c, e.nick);
-		break; case Action:  printf(C("* %s") " ", c, e.nick);
-		break; case Join: printf(C("%s") " joined", c, e.nick);
-		break; case Part: printf(C("%s") " parted: ", c, e.nick);
-		break; case Quit: printf(C("%s") " quit: ", c, e.nick);
-		break; case Kick: printf(C("%s") " kicked %s: ", c, e.nick, e.target);
-		break; case Nick: {
-			printf(
-				C("%s") " changed nick to " C("%s"),
-				c, e.nick,
-				(strcmp(e.user, "*") ? c : color(e.target)), e.target
-			);
-		}
-		break; case Topic: printf(C("%s") " set the topic: ", c, e.nick);
-		break; case Ban:   printf(C("%s") " banned %s", c, e.nick, e.target);
-		break; case Unban: printf(C("%s") " unbanned %s", c, e.nick, e.target);
+		break; case Privmsg: printf("<%s>\33[m ", e.nick);
+		break; case Notice:  printf("-%s-\33[m ", e.nick);
+		break; case Action:  printf("* %s\33[m ", e.nick);
+		break; default:      printf("%s\33[m ", e.nick);
 	}
-#undef C
-
+	switch (e.type) {
+		break; case Join: printf("joined");
+		break; case Part: printf("parted: ");
+		break; case Quit: printf("quit: ");
+		break; case Kick: printf("kicked %s: ", e.target);
+		break; case Nick: printf(
+			"changed nick to \33[%dm%s\33[m",
+			color(strcmp(e.user, "*") ? e.user : e.target), e.target
+		);
+		break; case Topic: printf("set the topic: ");
+		break; case Ban:   printf("banned %s", e.target);
+		break; case Unban: printf("unbanned %s", e.target);
+		break; default:;
+	}
 	if (e.message) ansi(e.message);
 	printf("\n");
 }
@@ -192,41 +172,34 @@ static void formatIRC(bool group, struct Event e) {
 	} else {
 		printf("@time=%s :%s!%s@%s ", e.time, e.nick, e.user, e.host);
 	}
-	if (!strcmp(e.context, e.nick)) e.context = "*";
 	switch (e.type) {
-		break; case Privmsg: {
-			printf("PRIVMSG %s :%s\r\n", e.context, e.message);
+		break; case Privmsg: printf("PRIVMSG");
+		break; case Notice:  printf("NOTICE");
+		break; case Action:  printf("PRIVMSG");
+		break; case Join:    printf("JOIN");
+		break; case Part:    printf("PART");
+		break; case Quit:    printf("QUIT");
+		break; case Kick:    printf("KICK");
+		break; case Nick:    printf("NICK");
+		break; case Topic:   printf("TOPIC");
+		break; case Ban:     printf("MODE");
+		break; case Unban:   printf("MODE");
+	}
+	switch (e.type) {
+		break; case Quit:;
+		break; case Nick:;
+		break; default: {
+			printf(" %s", (strcmp(e.context, e.nick) ? e.context : "*"));
 		}
-		break; case Notice: {
-			printf("NOTICE %s :%s\r\n", e.context, e.message);
-		}
-		break; case Action: {
-			printf("PRIVMSG %s :\1ACTION %s\1\r\n", e.context, e.message);
-		}
-		break; case Join: {
-			printf("JOIN %s\r\n", e.context);
-		}
-		break; case Part: {
-			printf("PART %s :%s\r\n", e.context, e.message);
-		}
-		break; case Quit: {
-			printf("QUIT :%s\r\n", e.message);
-		}
-		break; case Kick: {
-			printf("KICK %s %s :%s\r\n", e.context, e.target, e.message);
-		}
-		break; case Nick: {
-			printf("NICK %s\r\n", e.target);
-		}
-		break; case Topic: {
-			printf("TOPIC %s :%s\r\n", e.context, e.message);
-		}
-		break; case Ban: {
-			printf("MODE %s +b %s\r\n", e.context, e.target);
-		}
-		break; case Unban: {
-			printf("MODE %s -b %s\r\n", e.context, e.target);
-		}
+	}
+	switch (e.type) {
+		break; case Action: printf(" :\1ACTION %s\1\r\n", e.message);
+		break; case Join:   printf("\r\n");
+		break; case Kick:   printf(" %s :%s\r\n", e.target, e.message);
+		break; case Nick:   printf(" %s\r\n", e.target);
+		break; case Ban:    printf(" +b %s\r\n", e.target);
+		break; case Unban:  printf(" -b %s\r\n", e.target);
+		break; default:     printf(" :%s\r\n", e.message);
 	}
 }
 
