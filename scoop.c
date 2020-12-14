@@ -82,19 +82,32 @@ static void formatPlain(bool group, struct Event e) {
 	}
 }
 
-static const int Colors[] = {
-	31, 32, 33, 34, 35, 36, 37,
-	90, 91, 92, 93, 94, 95, 96, 97,
+static const int Colors[100] = {
+	15, 0, 4, 2, 9, 1, 5, 3, 11, 10, 6, 14, 12, 13, 8, 7,
+	52, 94, 100, 58, 22, 29, 23, 24, 17, 54, 53, 89,
+	88, 130, 142, 64, 28, 35, 30, 25, 18, 91, 90, 125,
+	124, 166, 184, 106, 34, 49, 37, 33, 19, 129, 127, 161,
+	196, 208, 226, 154, 46, 86, 51, 75, 21, 171, 201, 198,
+	203, 215, 227, 191, 83, 122, 87, 111, 63, 177, 207, 205,
+	217, 223, 229, 193, 157, 158, 159, 153, 147, 183, 219, 212,
+	16, 233, 235, 237, 239, 241, 244, 247, 250, 254, 231,
+	-1,
 };
 
 static int color(const char *user) {
-	return Colors[hash(user) % ARRAY_LEN(Colors)];
+	return Colors[2 + hash(user) % 74];
 }
 
-static const int ANSI[100] = {
-	97, 30, 34, 32, 91, 31, 35, 33,
-	93, 92, 36, 96, 94, 95, 90, 37,
+static const int Codes[16] = {
+	30, 31, 32, 33, 34, 35, 36, 37,
+	90, 91, 92, 93, 94, 95, 96, 97,
 };
+
+static int code(int color) {
+	if (color < 0) return 39;
+	if (color && !(color % 16)) return Codes[8];
+	return Codes[color % 16];
+}
 
 static void ansi(const char *str) {
 	int b = 0, i = 0, u = 0, r = 0;
@@ -116,12 +129,12 @@ static void ansi(const char *str) {
 				}
 				int fg = *str++ - '0';
 				if (isdigit(*str)) fg = fg * 10 + *str++ - '0';
-				printf("\33[%dm", (ANSI[fg] ? ANSI[fg] : 39));
+				printf("\33[%dm", code(Colors[fg]));
 				if (str[0] != ',' || !isdigit(str[1])) break;
 				str++;
 				int bg = *str++ - '0';
 				if (isdigit(*str)) bg = bg * 10 + *str++ - '0';
-				printf("\33[%dm", (ANSI[bg] ? 10 + ANSI[bg] : 49));
+				printf("\33[%dm", 10 + code(Colors[bg]));
 			}
 		}
 	}
@@ -140,7 +153,7 @@ static void formatColor(bool group, struct Event e) {
 	}
 
 	printf("[%s] ", e.time);
-	printf("\33[%dm", color(strcmp(e.user, "*") ? e.user : e.nick));
+	printf("\33[%dm", code(color(strcmp(e.user, "*") ? e.user : e.nick)));
 	switch (e.type) {
 		break; case Privmsg: printf("<%s>\33[m ", e.nick);
 		break; case Notice:  printf("-%s-\33[m ", e.nick);
@@ -154,7 +167,7 @@ static void formatColor(bool group, struct Event e) {
 		break; case Kick: printf("kicked %s: ", e.target);
 		break; case Nick: printf(
 			"changed nick to \33[%dm%s\33[m",
-			color(strcmp(e.user, "*") ? e.user : e.target), e.target
+			code(color(strcmp(e.user, "*") ? e.user : e.target)), e.target
 		);
 		break; case Topic: printf("set the topic: ");
 		break; case Ban:   printf("banned %s", e.target);
