@@ -128,6 +128,7 @@ static int searchLimit = 10;
 static char *self;
 static char *network;
 static char *chanTypes;
+static char *statusmsg;
 static char *prefixes;
 static char *prefixModes;
 static char *listModes;
@@ -182,6 +183,8 @@ static void handleReplyISupport(struct Message *msg) {
 			set(&network, msg->params[i]);
 		} else if (!strcmp(key, "CHANTYPES")) {
 			set(&chanTypes, msg->params[i]);
+		} else if (!strcmp(key, "STATUSMSG")) {
+			set(&statusmsg, msg->params[i]);
 		} else if (!strcmp(key, "PREFIX")) {
 			strsep(&msg->params[i], "(");
 			char *modes = strsep(&msg->params[i], ")");
@@ -429,6 +432,7 @@ static void handlePrivmsg(struct Message *msg) {
 
 	bool query = true;
 	const char *context = msg->params[0];
+	if (statusmsg) context += strspn(context, statusmsg);
 	if (strchr(chanTypes, context[0])) query = false;
 	if (!strcmp(context, self)) context = msg->nick;
 
