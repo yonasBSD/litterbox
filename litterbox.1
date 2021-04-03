@@ -75,9 +75,10 @@ files listed on the command line.
 Files are searched for in
 .Pa $XDG_CONFIG_DIRS/litterbox
 unless the path starts with
-.Ql /
+.Ql / ,
+.Ql \&./
 or
-.Ql \&. .
+.Ql \&../ .
 Each option is placed on a line,
 and lines beginning with
 .Ql #
