@@ -1,4 +1,4 @@
-.Dd August 22, 2020
+.Dd April  3, 2021
 .Dt LITTERBOX 1
 .Os
 .
@@ -19,6 +19,7 @@
 .Op Fl l Ar limit
 .Op Fl n Ar nick
 .Op Fl p Ar port
+.Op Fl t Ar trust
 .Op Fl u Ar user
 .Op Fl w Ar pass
 .Op Ar config ...
@@ -212,6 +213,15 @@ The searchable columns are
 .Li message .
 For search query syntax, see
 .Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
+.
+.It Fl t Ar path , Cm trust = Ar path
+Trust the self-signed certificate loaded from
+.Ar path
+and disable server name verification.
+The
+.Ar path
+is searched for in the same manner
+as configuration files.
 .
 .It Fl u Ar user , Cm user = Ar user
 Set the username to

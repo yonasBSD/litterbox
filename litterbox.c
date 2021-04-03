@@ -757,6 +757,7 @@ int main(int argc, char *argv[]) {
 	bool insecure = false;
 	const char *cert = NULL;
 	const char *priv = NULL;
+	const char *trust = NULL;
 	const char *defaultNetwork = NULL;
 
 	const char *nick = "litterbox";
@@ -780,6 +781,7 @@ int main(int argc, char *argv[]) {
 		{ .val = 'n', .name = "nick", required_argument },
 		{ .val = 'p', .name = "port", required_argument },
 		{ .val = 'q', .name = "private-query", no_argument },
+		{ .val = 't', .name = "trust", required_argument },
 		{ .val = 'u', .name = "user", required_argument },
 		{ .val = 'v', .name = "verbose", no_argument },
 		{ .val = 'w', .name = "pass", required_argument },
@@ -809,6 +811,7 @@ int main(int argc, char *argv[]) {
 			break; case 'n': nick = optarg;
 			break; case 'p': port = optarg;
 			break; case 'q': searchQuery = Private;
+			break; case 't': trust = optarg;
 			break; case 'u': user = optarg;
 			break; case 'v': verbose = true;
 			break; case 'w': pass = optarg;
@@ -858,9 +861,19 @@ int main(int argc, char *argv[]) {
 	if (error) {
 		errx(EX_SOFTWARE, "tls_config_set_ciphers: %s", tls_config_error(config));
 	}
+
 	if (insecure) {
 		tls_config_insecure_noverifycert(config);
 		tls_config_insecure_noverifyname(config);
+	}
+	if (trust) {
+		tls_config_insecure_noverifyname(config);
+		const char *dirs = NULL;
+		while (NULL != (path = configPath(&dirs, trust))) {
+			error = tls_config_set_ca_file(config, path);
+			if (!error) break;
+		}
+		if (error) errx(EX_NOINPUT, "%s: %s", trust, tls_config_error(config));
 	}
 
 	if (cert) {
