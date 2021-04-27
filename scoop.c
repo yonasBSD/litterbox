@@ -283,7 +283,9 @@ static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
 	sqlite3_result_int(ctx, !error);
 }
 
-static char select[4096] = SQL(
+enum { QueryCap = 4096 };
+
+static char select[QueryCap] = SQL(
 	SELECT
 		events.event,
 		contexts.network,
@@ -305,8 +307,6 @@ static char select[4096] = SQL(
 		names.host,
 		events.target,
 );
-
-enum { QueryCap = 4096 };
 
 static char from[QueryCap] = SQL(
 	FROM events
