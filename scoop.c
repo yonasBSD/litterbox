@@ -364,9 +364,19 @@ int main(int argc, char *argv[]) {
 				append(
 					where,
 					SQL(
-						AND events.time >= strftime('%s', :date, 'start of day')
-						AND events.time
-							< strftime('%s', :date, 'start of day', '+1 day')
+						AND events.time >=
+						CASE WHEN :local THEN
+							strftime('%s', :date, 'start of day', 'utc')
+						ELSE
+							strftime('%s', :date, 'start of day')
+						END
+						AND events.time <
+						CASE WHEN :local THEN
+							strftime('%s', :date, 'start of day', '+1 day',
+								'utc')
+						ELSE
+							strftime('%s', :date, 'start of day', '+1 day')
+						END
 					)
 				);
 				binds[n++] = Bind(":date", optarg, 0);
@@ -389,11 +399,29 @@ int main(int argc, char *argv[]) {
 				binds[n++] = Bind(":target", optarg, 0);
 			}
 			break; case 'a': {
-				append(where, SQL(AND events.time >= strftime('%s', :after)));
+				append(
+					where,
+					SQL(
+						AND events.time >=
+						CASE WHEN :local
+						THEN strftime('%s', :after, 'utc')
+						ELSE strftime('%s', :after)
+						END
+					)
+				);
 				binds[n++] = Bind(":after", optarg, 0);
 			}
 			break; case 'b': {
-				append(where, SQL(AND events.time < strftime('%s', :before)));
+				append(
+					where,
+					SQL(
+						AND events.time <
+						CASE WHEN :local
+						THEN strftime('%s', :before, 'utc')
+						ELSE strftime('%s', :before)
+						END
+					)
+				);
 				binds[n++] = Bind(":before", optarg, 0);
 			}
 			break; case 'c': {
