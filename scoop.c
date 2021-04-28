@@ -344,6 +344,14 @@ static enum Type parseType(const char *input) {
 	errx(EX_USAGE, "no such type %s", input);
 }
 
+static int parseTypes(char *list) {
+	int mask = 0;
+	while (list) {
+		mask |= 1 << parseType(strsep(&list, ","));
+	}
+	return mask;
+}
+
 int main(int argc, char *argv[]) {
 	bool tty = isatty(STDOUT_FILENO);
 
@@ -466,8 +474,8 @@ int main(int argc, char *argv[]) {
 				sort = true;
 			}
 			break; case 't': {
-				append(where, SQL(AND events.type = :type));
-				binds[n++] = Bind(":type", NULL, parseType(optarg));
+				append(where, SQL(AND (1 << events.type) & :types));
+				binds[n++] = Bind(":types", NULL, parseTypes(optarg));
 			}
 			break; case 'u': {
 				append(where, SQL(AND names.user = :user));
