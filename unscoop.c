@@ -221,9 +221,12 @@ static const struct Format {
 };
 
 static const struct Format *formatParse(const char *name) {
+	bool list = !strcmp(name, "?");
 	for (size_t i = 0; i < ARRAY_LEN(Formats); ++i) {
 		if (!strcmp(name, Formats[i].name)) return &Formats[i];
+		if (list) printf("%s\n", Formats[i].name);
 	}
+	if (list) exit(EX_OK);
 	errx(EX_USAGE, "no such format %s", name);
 }
 

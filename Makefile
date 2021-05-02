@@ -20,8 +20,6 @@ OBJS.scoop = scoop.o xdg.o
 OBJS.unscoop = unscoop.o xdg.o
 OBJS = ${OBJS.litterbox} ${OBJS.scoop} ${OBJS.unscoop}
 
-FORMATS = generic catgirl irc textual
-
 dev: tags all test
 
 all: ${BINS}
@@ -40,7 +38,7 @@ ${OBJS}: database.h
 test: .test
 
 .test: unscoop
-	for f in ${FORMATS}; do ./unscoop -! -f $$f || exit 1; done
+	for f in $$(./unscoop -f ?); do ./unscoop -! -f $$f || exit 1; done
 	touch .test
 
 tags: *.[ch]
