@@ -3,12 +3,17 @@ MANDIR ?= ${PREFIX}/share/man
 ETCDIR ?= ${PREFIX}/etc
 
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
-LDLIBS = -lsqlite3 -ltls
+LDADD.sqlite3 = -lsqlite3
+LDADD.libtls = -ltls
 
 BINS = litterbox scoop unscoop
 MANS = ${BINS:=.1}
 
 -include config.mk
+
+LDLIBS.litterbox = ${LDADD.sqlite3} ${LDADD.libtls}
+LDLIBS.scoop = ${LDADD.sqlite3}
+LDLIBS.unscoop = ${LDADD.sqlite3}
 
 OBJS.litterbox = litterbox.o config.o xdg.o
 OBJS.scoop = scoop.o xdg.o
@@ -27,8 +32,8 @@ scoop: ${OBJS.scoop}
 
 unscoop: ${OBJS.unscoop}
 
-.o:
-	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS} -o $@
+${BINS}:
+	${CC} ${LDFLAGS} ${OBJS.$@} ${LDLIBS.$@} -o $@
 
 ${OBJS}: database.h
 
