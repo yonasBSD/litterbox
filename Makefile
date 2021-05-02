@@ -1,6 +1,6 @@
 PREFIX ?= /usr/local
-MANDIR ?= ${PREFIX}/share/man
-ETCDIR ?= ${PREFIX}/etc
+BINDIR ?= ${PREFIX}/bin
+MANDIR ?= ${PREFIX}/man
 
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
 LDADD.sqlite3 = -lsqlite3
@@ -40,7 +40,7 @@ ${OBJS}: database.h
 test: .test
 
 .test: unscoop
-	set -e; for format in ${FORMATS}; do ./unscoop -! -f $$format; done
+	for f in ${FORMATS}; do ./unscoop -! -f $$f || exit 1; done
 	touch .test
 
 tags: *.[ch]
@@ -50,10 +50,10 @@ clean:
 	rm -f ${BINS} ${OBJS} .test tags
 
 install: ${BINS} ${MANS}
-	install -d ${DESTDIR}${PREFIX}/bin ${DESTDIR}${MANDIR}/man1
-	install ${BINS} ${DESTDIR}${PREFIX}/bin
+	install -d ${DESTDIR}${BINDIR} ${DESTDIR}${MANDIR}/man1
+	install ${BINS} ${DESTDIR}${BINDIR}
 	install -m 644 ${MANS} ${DESTDIR}${MANDIR}/man1
 
 uninstall:
-	rm -f ${BINS:%=${DESTDIR}${PREFIX}/bin/%}
+	rm -f ${BINS:%=${DESTDIR}${BINDIR}/%}
 	rm -f ${MANS:%=${DESTDIR}${MANDIR}/man1/%}

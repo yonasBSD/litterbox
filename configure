@@ -25,6 +25,7 @@ exec >config.mk
 for opt; do
 	case "${opt}" in
 		(--prefix=*) echo "PREFIX = ${opt#*=}" ;;
+		(--bindir=*) echo "BINDIR = ${opt#*=}" ;;
 		(--mandir=*) echo "MANDIR = ${opt#*=}" ;;
 		(*) echo "warning: unsupported option ${opt}" >&2 ;;
 	esac
