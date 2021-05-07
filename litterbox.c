@@ -288,7 +288,7 @@ static void querySearch(struct Message *msg) {
 			WHERE contexts.network = :network
 				AND coalesce(contexts.query = :query, true)
 				AND search MATCH :search
-			ORDER BY time DESC, event DESC
+			ORDER BY search.rowid DESC
 			LIMIT :limit
 		)
 		SELECT * FROM results
