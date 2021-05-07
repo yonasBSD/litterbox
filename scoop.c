@@ -510,7 +510,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (limit) {
-		append(where, SQL(ORDER BY time DESC, event DESC LIMIT :limit));
+		if (optind < argc) {
+			append(where, SQL(ORDER BY search.rowid DESC LIMIT :limit));
+		} else {
+			append(where, SQL(ORDER BY event DESC LIMIT :limit));
+		}
 		binds[n++] = Bind(":limit", limit, 0);
 	}
 
