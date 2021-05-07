@@ -318,7 +318,10 @@ static void querySearch(struct Message *msg) {
 		if (!message) message = "";
 		if (!strcmp(user, "*")) user = nick;
 
-		format("NOTICE %s :(%s) [%s] ", msg->nick, context, time);
+		format(
+			"NOTICE %s :\3%02d%s\3: [%s] ",
+			msg->nick, color(context), context, time
+		);
 		switch (type) {
 			break; case Privmsg:
 				format("\3%d<%s>\3 %s\r\n", color(user), nick, message);
