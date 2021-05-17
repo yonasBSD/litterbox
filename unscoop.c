@@ -388,7 +388,7 @@ int main(int argc, char *argv[]) {
 
 	size_t sizeTotal = 0;
 	size_t sizeRead = 0;
-	size_t sizePercent = -1;
+	size_t sizePercent = 0;
 	struct {
 		regmatch_t match[ParamCap];
 	} *paths = calloc(argc, sizeof(*paths));
@@ -411,6 +411,8 @@ int main(int argc, char *argv[]) {
 	size_t cap = 0;
 	for (int i = optind; i < argc; ++i) {
 		if (!argv[i]) continue;
+		printf("%s\n", argv[i]);
+		fprintf(stderr, " %3zu%%\r", sizePercent);
 
 		FILE *file = fopen(argv[i], "r");
 		if (!file) err(EX_NOINPUT, "%s", argv[i]);
@@ -433,8 +435,7 @@ int main(int argc, char *argv[]) {
 			sizeRead += len;
 			if (100 * sizeRead / sizeTotal != sizePercent) {
 				sizePercent = 100 * sizeRead / sizeTotal;
-				printf("\r%3zu%%", sizePercent);
-				fflush(stdout);
+				fprintf(stderr, " %3zu%%\r", sizePercent);
 			}
 		}
 		if (ferror(file)) err(EX_IOERR, "%s", argv[i]);
@@ -442,7 +443,7 @@ int main(int argc, char *argv[]) {
 		fclose(file);
 		dbExec(SQL(COMMIT TRANSACTION;));
 	}
-	printf("\n");
+	fprintf(stderr, "\n");
 
 	dbClose();
 }
