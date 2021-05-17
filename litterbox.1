@@ -25,12 +25,12 @@
 .Op Ar config ...
 .
 .Nm
-.Op Fl d Ar path
 .Fl i | m
+.Op Fl d Ar path
 .
 .Nm
-.Op Fl d Ar path
 .Fl b Ar path
+.Op Fl d Ar path
 .
 .Sh DESCRIPTION
 The
@@ -65,10 +65,13 @@ it will be migrated automatically when
 starts,
 or can be migrated explicitly with
 .Fl m .
+Live backups of the database
+can be made with
+.Fl b .
 Instances of
 .Nm
 connected to different IRC networks
-can share the same database.
+will share the same database.
 .
 .Pp
 Options can be loaded from
@@ -113,8 +116,6 @@ The searchable columns are
 .Li user ,
 .Li target ,
 .Li message .
-For search query syntax, see
-.Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .
 .It Fl U Ar url , Cm scooper-url = Ar url
 Set the base URL of a
@@ -147,8 +148,9 @@ it is loaded with
 .
 .It Fl d Ar path , Cm database = Ar path
 Set the path to the database file.
-The default paths are documented in
-.Sx FILES .
+See
+.Sx FILES
+for the default paths.
 .
 .It Fl h Ar host , Cm host = Ar host
 Connect to
@@ -211,8 +213,6 @@ The searchable columns are
 .Li user ,
 .Li target ,
 .Li message .
-For search query syntax, see
-.Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .
 .It Fl t Ar path , Cm trust = Ar path
 Trust the self-signed certificate loaded from
@@ -246,9 +246,7 @@ Configuration files are searched for first in
 usually
 .Pa ~/.config ,
 followed by the colon-separated list of paths
-.Ev $XDG_CONFIG_DIRS ,
-usually
-.Pa /etc/xdg .
+.Ev $XDG_CONFIG_DIRS .
 .
 .It Pa $XDG_DATA_DIRS/litterbox/litterbox.sqlite
 The database file is searched for first in
@@ -256,11 +254,10 @@ The database file is searched for first in
 usually
 .Pa ~/.local/share ,
 followed by the colon-separated list of paths
-.Ev $XDG_DATA_DIRS ,
-usually
-.Pa /usr/local/share:/usr/share .
+.Ev $XDG_DATA_DIRS .
+.
 .It Pa ~/.local/share/litterbox/litterbox.sqlite
-The most likely default path to the database file.
+The most likely default path of the database file.
 .El
 .
 .Sh EXAMPLES
@@ -280,6 +277,8 @@ public-query
 .Sh SEE ALSO
 .Xr scoop 1 ,
 .Xr unscoop 1
+.Pp
+.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax "Full-text Query Syntax"
 .
 .Sh STANDARDS
 .Bl -item
@@ -332,7 +331,7 @@ daemon implements the
 and
 .Sy causal.agency/passive
 vendor-specific IRCv3 capabilities
-implemented by
+offered by
 .Xr pounce 1 .
 .
 .Sh AUTHORS

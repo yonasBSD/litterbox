@@ -53,19 +53,16 @@ The arguments are as follows:
 Match events which occurred on
 .Ar date ,
 of the format
-.Ar YYYY-MM-DD
-or the keyword
-.Cm now .
+.Ar YYYY-MM-DD .
 .
 .It Fl F Ar format
 Format timestamps using the
 .Ar format
 string,
 similar to
-.Xr strftime 3 ,
-see
-.Aq Lk https://www.sqlite.org/lang_datefunc.html .
-The default format is ISO 8601.
+.Xr strftime 3 .
+The default format is
+.Qq %Y-%m-%dT%H:%M:%S .
 .
 .It Fl L
 Output timestamps in local time
@@ -91,9 +88,10 @@ Match events
 .Po
 of type
 .Cm kick ,
-.Cm nick
-or
+.Cm nick ,
 .Cm ban
+or
+.Cm unban
 .Pc
 with the target nickname or mask
 .Ar target .
@@ -123,19 +121,20 @@ The default path is as in
 .It Fl f Ar format
 Set the output format to one of
 .Cm plain ,
-.Cm color ,
+.Cm color
+or
 .Cm irc .
+The default format is
+.Cm color
+if standard output is a terminal,
+.Cm plain
+otherwise.
 The
 .Cm irc
 format outputs events
 as IRC protocol with
 .Sy server-time
 tags.
-The default format is
-.Cm color
-if standard output is a terminal,
-.Cm plain
-otherwise.
 .
 .It Fl g
 Group events by network and channel or query name.
@@ -218,8 +217,6 @@ The searchable columns are
 .Li user ,
 .Li target ,
 .Li message .
-For search query syntax, see
-.Aq Lk https://www.sqlite.org/fts5.html#full_text_query_syntax .
 .El
 .
 .Sh ENVIRONMENT
@@ -228,15 +225,16 @@ For search query syntax, see
 The command to pipe terminal output to.
 The default is
 .Ev PAGER=less .
-.It Ev SHELL
-The shell used to run
-.Ev PAGER .
-The default is
-.Pa /bin/sh .
 .El
 .
 .Sh SEE ALSO
 .Xr litterbox 1
+.Bl -item
+.It
+.Lk https://www.sqlite.org/lang_datefunc.html "Date and Time Functions"
+.It
+.Lk https://www.sqlite.org/fts5.html#full_text_query_syntax "Full-text Query Syntax"
+.El
 .
 .Sh AUTHORS
 .An June Bug Aq Mt june@causal.agency
