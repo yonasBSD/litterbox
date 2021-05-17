@@ -286,8 +286,8 @@ static void
 matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 	for (size_t i = 0; i < format->len; ++i) {
 		const struct Matcher *matcher = &format->matchers[i];
-		regmatch_t match[ParamCap];
-		if (regexec(&regex[i], line, ParamCap, match, 0)) continue;
+		regmatch_t match[1 + ParamCap];
+		if (regexec(&regex[i], line, 1 + ParamCap, match, 0)) continue;
 
 		sqlite3_clear_bindings(insertName);
 		for (int i = 1; i <= sqlite3_bind_parameter_count(insertEvent); ++i) {
