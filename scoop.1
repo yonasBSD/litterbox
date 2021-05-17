@@ -1,4 +1,4 @@
-.Dd May  7, 2021
+.Dd May 17, 2021
 .Dt SCOOP 1
 .Os
 .
@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl Lgpqsv
+.Op Fl Lgpqrsv
 .Op Fl D Ar date
 .Op Fl F Ar format
 .Op Fl N Ar network
@@ -168,6 +168,9 @@ Match only events from channels.
 .
 .It Fl q
 Match only events from queries.
+.
+.It Fl r
+Output results in reverse order.
 .
 .It Fl s
 Sort the results from oldest to newest.

@@ -361,11 +361,12 @@ int main(int argc, char *argv[]) {
 
 	bool sort = false;
 	bool group = false;
+	bool reverse = false;
 	const char *limit = NULL;
 
 	int n = 0;
 	struct Bind binds[argc + 2];
-	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqst:u:vw:";
+	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqrst:u:vw:";
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': {
@@ -470,6 +471,9 @@ int main(int argc, char *argv[]) {
 				append(where, SQL(AND contexts.query = :query));
 				binds[n++] = Bind(":query", NULL, 1);
 			}
+			break; case 'r': {
+				reverse = true;
+			}
 			break; case 's': {
 				sort = true;
 			}
@@ -492,7 +496,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (optind < argc) {
+	bool search = (optind < argc);
+	if (search) {
 		append(select, SQL(highlight(search, 6, :open, :close)));
 		append(from, SQL(JOIN search ON search.rowid = events.event));
 		append(where, SQL(AND search MATCH :search));
@@ -510,7 +515,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (limit) {
-		if (optind < argc) {
+		if (search) {
 			append(where, SQL(ORDER BY search.rowid DESC LIMIT :limit));
 		} else {
 			append(where, SQL(ORDER BY event DESC LIMIT :limit));
@@ -543,9 +548,15 @@ int main(int argc, char *argv[]) {
 			SQL(
 				WITH results AS (%s %s %s)
 				SELECT * FROM results
-				ORDER BY %s time, event;
+				ORDER BY %s time %s, event %s;
 			),
-			select, from, where, (group ? "network, context," : "")
+			select, from, where, (group ? "network, context," : ""),
+			(reverse ? "DESC" : ""), (reverse ? "DESC" : "")
+		);
+	} else if (reverse) {
+		len = asprintf(
+			&query, "%s %s %s ORDER BY %s DESC;",
+			select, from, where, (search ? "search.rowid" : "event")
 		);
 	} else {
 		len = asprintf(&query, "%s %s %s;", select, from, where);
