@@ -365,7 +365,9 @@ int main(int argc, char *argv[]) {
 	const char *limit = NULL;
 
 	int n = 0;
-	struct Bind binds[argc + 2];
+	struct Bind *binds = calloc(argc + 2, sizeof(*binds));
+	if (!binds) err(EX_OSERR, "calloc");
+
 	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqrst:u:vw:";
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
@@ -573,6 +575,7 @@ int main(int argc, char *argv[]) {
 			dbBindInt(stmt, binds[i].param, binds[i].value);
 		}
 	}
+	free(binds);
 
 	if (verbose) {
 		char *expand = sqlite3_expanded_sql(stmt);

@@ -352,7 +352,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	regex_t pathRegex = compile(format->pattern);
-	regex_t regex[format->len];
+	regex_t *regex = calloc(format->len, sizeof(*regex));
+	if (!regex) err(EX_OSERR, "calloc");
 	for (size_t i = 0; i < format->len; ++i) {
 		regex[i] = compile(format->matchers[i].pattern);
 	}
@@ -388,10 +389,12 @@ int main(int argc, char *argv[]) {
 	size_t sizeTotal = 0;
 	size_t sizeRead = 0;
 	size_t sizePercent = -1;
-	regmatch_t match[argc][ParamCap];
+	struct {
+		regmatch_t match[ParamCap];
+	} *paths = calloc(argc, sizeof(*paths));
 
 	for (int i = optind; i < argc; ++i) {
-		int error = regexec(&pathRegex, argv[i], ParamCap, match[i], 0);
+		int error = regexec(&pathRegex, argv[i], ParamCap, paths[i].match, 0);
 		if (error && (!network || !context)) {
 			warnx("skipping %s", argv[i]);
 			argv[i] = NULL;
@@ -413,8 +416,8 @@ int main(int argc, char *argv[]) {
 		if (!file) err(EX_NOINPUT, "%s", argv[i]);
 		dbExec(SQL(BEGIN TRANSACTION;));
 
-		regmatch_t pathNetwork = match[i][format->network];
-		regmatch_t pathContext = match[i][format->context];
+		regmatch_t pathNetwork = paths[i].match[format->network];
+		regmatch_t pathContext = paths[i].match[format->context];
 		if (!network) {
 			bindMatch(insertContext, ":network", argv[i], pathNetwork);
 			bindMatch(insertEvent, ":network", argv[i], pathNetwork);
