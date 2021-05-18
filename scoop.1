@@ -1,4 +1,4 @@
-.Dd May 17, 2021
+.Dd May 18, 2021
 .Dt SCOOP 1
 .Os
 .
@@ -8,7 +8,7 @@
 .
 .Sh SYNOPSIS
 .Nm
-.Op Fl Lgpqrsv
+.Op Fl Lgipqrsv
 .Op Fl D Ar date
 .Op Fl F Ar format
 .Op Fl N Ar network
@@ -145,6 +145,11 @@ Implies
 Match events from users with the hostname
 .Ar host .
 .
+.It Fl i
+Use case-insensitive regular expression matching
+with
+.Fl m .
+.
 .It Fl l Ar limit
 Limit the number of events matched,
 ordered by most recently inserted.
@@ -157,6 +162,9 @@ matching the modern regular expression
 .Ar regexp .
 See
 .Xr re_format 7 .
+To match case-insensitively,
+use with
+.Fl i .
 .
 .It Fl n Ar nick
 Match events from users with the nickname

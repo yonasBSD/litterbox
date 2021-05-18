@@ -245,6 +245,7 @@ static void regexpFree(void *_regex) {
 	free(regex);
 }
 
+static int regexpFlags = REG_EXTENDED | REG_NOSUB;
 static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
 	assert(n == 2);
 	if (sqlite3_value_type(args[0]) == SQLITE_NULL) {
@@ -267,7 +268,7 @@ static void regexp(sqlite3_context *ctx, int n, sqlite3_value *args[]) {
 
 		int error = regcomp(
 			regex, (const char *)sqlite3_value_text(args[0]),
-			REG_EXTENDED | REG_NOSUB
+			regexpFlags
 		);
 		if (error) {
 			char msg[256];
@@ -368,7 +369,7 @@ int main(int argc, char *argv[]) {
 	struct Bind *binds = calloc(argc + 2, sizeof(*binds));
 	if (!binds) err(EX_OSERR, "calloc");
 
-	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:l:m:n:pqrst:u:vw:";
+	const char *Opts = "D:F:LN:ST:a:b:c:d:f:gh:il:m:n:pqrst:u:vw:";
 	for (int opt; 0 < (opt = getopt(argc, argv, Opts));) {
 		switch (opt) {
 			break; case 'D': {
@@ -452,6 +453,9 @@ int main(int argc, char *argv[]) {
 			break; case 'h': {
 				append(where, SQL(AND names.host = :host));
 				binds[n++] = Bind(":host", optarg, 0);
+			}
+			break; case 'i': {
+				regexpFlags |= REG_ICASE;
 			}
 			break; case 'l': {
 				limit = optarg;
