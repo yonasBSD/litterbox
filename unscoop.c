@@ -49,6 +49,7 @@ struct Matcher {
 
 #define P0_MODE "[!~&@%+ ]?"
 #define P1_TIME "^[[]([^]]+)[]][ \t]"
+#define P2_USERHOST "[(]([^@]+)@([^)]+)[)]"
 
 static const struct Matcher Catgirl[] = {
 	{
@@ -147,7 +148,6 @@ static const struct Matcher IRC[] = {
 #undef P2_TAGS
 #undef P3_ORIGIN
 
-#define P2_USERHOST "[(]([^@]+)@([^)]+)[)]"
 #define P2_MESSAGE "( [(]([^)]+)[)])?"
 static const struct Matcher Textual[] = {
 	{
@@ -185,8 +185,44 @@ static const struct Matcher Textual[] = {
 		Unban, { ":time", ":nick", ":target" },
 	}
 };
-#undef P2_USERHOST
 #undef P2_MESSAGE
+
+static const struct Matcher ZNC[] = {
+	{
+		P1_TIME "<([^>]+)> (.+)",
+		Privmsg, { ":time", ":nick", ":message" },
+	}, {
+		P1_TIME "-([^-]+)- (.+)",
+		Notice, { ":time", ":nick", ":message" },
+	}, {
+		P1_TIME "[*] ([^ ]+) (.+)",
+		Action, { ":time", ":nick", ":message" },
+	}, {
+		P1_TIME "[*]{3} Joins: ([^ ]+) " P2_USERHOST,
+		Join, { ":time", ":nick", ":user", ":host" },
+	}, {
+		P1_TIME "[*]{3} Parts: ([^ ]+) " P2_USERHOST " [(](.*)[)]",
+		Part, { ":time", ":nick", ":user", ":host", ":message" },
+	}, {
+		P1_TIME "[*]{3} ([^ ]+) was kicked by ([^ ]+) [(](.*)[)]",
+		Kick, { ":time", ":target", ":nick", ":message" },
+	}, {
+		P1_TIME "[*]{3} Quits: ([^ ]+) " P2_USERHOST " [(](.*)[)]",
+		Quit, { ":time", ":nick", ":user", ":host", ":message" },
+	}, {
+		P1_TIME "[*]{3} ([^ ]+) is now known as ([^ ]+)",
+		Nick, { ":time", ":nick", ":target" },
+	}, {
+		P1_TIME "[*]{3} ([^ ]+) changes topic to '(.*)'",
+		Topic, { ":time", ":nick", ":message" },
+	}, {
+		P1_TIME "[*]{3} ([^ ]+) sets mode: [+]b+ (.+)",
+		Ban, { ":time", ":nick", ":target" },
+	}, {
+		P1_TIME "[*]{3} ([^ ]+) sets mode: [-]b+ (.+)",
+		Unban, { ":time", ":nick", ":target" },
+	}
+};
 
 static const struct Format {
 	const char *name;
@@ -195,18 +231,19 @@ static const struct Format {
 	const char *pattern;
 	size_t network;
 	size_t context;
+	size_t date;
 } Formats[] = {
 	{
 		"generic", Generic, ARRAY_LEN(Generic),
-		"([^/]+)/([^/]+)/[^/]+$", 1, 2,
+		"([^/]+)/([^/]+)/[^/]+$", 1, 2, 0,
 	},
 	{
 		"catgirl", Catgirl, ARRAY_LEN(Catgirl),
-		"([^/]+)/([^/]+)/[0-9-]+[.]log$", 1, 2,
+		"([^/]+)/([^/]+)/[0-9-]+[.]log$", 1, 2, 0,
 	},
 	{
 		"irc", IRC, ARRAY_LEN(IRC),
-		"^$", 0, 0,
+		"^$", 0, 0, 0,
 	},
 	{
 		"textual", Textual, ARRAY_LEN(Textual),
@@ -216,7 +253,11 @@ static const struct Format {
 			"([^/]+)/"
 			"[0-9-]+[.]txt$"
 		),
-		1, 4,
+		1, 4, 0,
+	},
+	{
+		"znc", ZNC, ARRAY_LEN(ZNC),
+		"([^/]+)/(moddata/log/)?([^/]+)/([0-9-]+)[.]log$", 1, 3, 4,
 	},
 };
 
@@ -253,6 +294,7 @@ static sqlite3_stmt *insertName;
 static sqlite3_stmt *insertEvent;
 static int paramNetwork;
 static int paramContext;
+static int paramDate;
 
 static void prepareInsert(void) {
 	const char *InsertName = SQL(
@@ -265,9 +307,11 @@ static void prepareInsert(void) {
 		INSERT INTO events (time, type, context, name, target, message)
 		SELECT
 			// SQLite expects a colon in the timezine, but ISO8601 does not.
-			CASE WHEN :time LIKE '%Z'
-				THEN strftime('%s', :time)
-				ELSE strftime('%s', substr(:time, 1, 22) || ':' || substr(:time, -2))
+			CASE
+			WHEN :time LIKE '%+____' OR :time LIKE '%-____' THEN
+				strftime('%s', substr(:time, 1, 22) || ':' || substr(:time, -2))
+			ELSE
+				strftime('%s', coalesce(:date || ' ', "") || :time)
 			END,
 			:type, context, names.name, :target, :message
 		FROM contexts, names
@@ -280,6 +324,7 @@ static void prepareInsert(void) {
 	dbPersist(&insertEvent, InsertEvent);
 	paramNetwork = dbParam(insertEvent, ":network");
 	paramContext = dbParam(insertEvent, ":context");
+	paramDate = dbParam(insertEvent, ":date");
 }
 
 static void
@@ -291,8 +336,9 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 
 		sqlite3_clear_bindings(insertName);
 		for (int i = 1; i <= sqlite3_bind_parameter_count(insertEvent); ++i) {
-			if (i == paramNetwork || i == paramContext) continue;
-			sqlite3_bind_null(insertEvent, i);
+			if (i != paramNetwork && i != paramContext && i != paramDate) {
+				sqlite3_bind_null(insertEvent, i);
+			}
 		}
 
 		dbBindInt(insertEvent, ":type", matcher->type);
@@ -429,6 +475,12 @@ int main(int argc, char *argv[]) {
 			bindMatch(insertEvent, ":context", argv[i], pathContext);
 		}
 		dbRun(insertContext);
+
+		if (format->date) {
+			bindMatch(
+				insertEvent, ":date", argv[i], paths[i].match[format->date]
+			);
+		}
 
 		for (ssize_t len; 0 < (len = getline(&line, &cap, file));) {
 			matchLine(format, regex, line);

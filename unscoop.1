@@ -1,4 +1,4 @@
-.Dd September 30, 2020
+.Dd May 17, 2021
 .Dt UNSCOOP 1
 .Os
 .
@@ -102,6 +102,20 @@ Import logs from the Textual IRC client.
 find Textual -type f -name '*.txt' \e
 	-not -path '*/Console/*' -print0 |
 xargs -0 unscoop -f textual
+.Ed
+.
+.It Fl f Cm znc
+Import logs from the
+.Xr znc 1
+.Sy log
+module.
+.Bd -literal -offset indent
+find ~/.znc/moddata/log \e
+	~/.znc/users/*/moddata/log \e
+	~/.znc/users/*/networks/*/moddata/log \e
+	-type f -name '*.log' \e
+	-not -path '*/status/*' -print0 |
+xargs -0 unscoop -f znc
 .Ed
 .
 .It Fl v
