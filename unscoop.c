@@ -50,6 +50,7 @@ struct Matcher {
 #define P0_MODE "[!~&@%+ ]?"
 #define P1_TIME "^[[]([^]]+)[]][ \t]"
 #define P2_USERHOST "[(]([^@]+)@([^)]+)[)]"
+#define P2_MESSAGE "( [(]([^)]+)[)])?"
 
 static const struct Matcher Catgirl[] = {
 	{
@@ -148,7 +149,6 @@ static const struct Matcher IRC[] = {
 #undef P2_TAGS
 #undef P3_ORIGIN
 
-#define P2_MESSAGE "( [(]([^)]+)[)])?"
 static const struct Matcher Textual[] = {
 	{
 		P1_TIME "<" P0_MODE "([^>]+)> (.+)",
@@ -185,7 +185,46 @@ static const struct Matcher Textual[] = {
 		Unban, { ":time", ":nick", ":target" },
 	}
 };
-#undef P2_MESSAGE
+
+static const struct Matcher WeeChat[] = {
+	{
+		"([^\t]+)\t-->\t([^ ]+) " P2_USERHOST " has joined",
+		Join, { ":time", ":nick", ":user", ":host" },
+	}, {
+		"([^\t]+)\t<--\t([^ ]+) " P2_USERHOST " has left [^ ]+" P2_MESSAGE,
+		Part, { ":time", ":nick", ":user", ":host", NULL, ":message" },
+	}, {
+		"([^\t]+)\t<--\t([^ ]+) has kicked ([^ ]+)" P2_MESSAGE,
+		Kick, { ":time", ":nick", ":target", NULL, ":message" },
+	}, {
+		"([^\t]+)\t<--\t([^ ]+) " P2_USERHOST " has quit" P2_MESSAGE,
+		Quit, { ":time", ":nick", ":user", ":host", NULL, ":message" },
+	}, {
+		"([^\t]+)\t--\t([^ ]+) is now known as ([^ ]+)",
+		Nick, { ":time", ":nick", ":target" },
+	}, {
+		"([^\t]+)\t--\t([^ ]+) has changed topic for [^ ]+ to \"(.+)\"",
+		Topic, { ":time", ":nick", ":message" },
+	}, {
+		"([^\t]+)\t--\t([^ ]+) has unset topic",
+		Topic, { ":time", ":nick" },
+	}, {
+		"([^\t]+)\t--\tMode [^ ]+ [[][+]b+ ([^]]+)[]] by ([^ ]+)",
+		Ban, { ":time", ":target", ":nick" },
+	}, {
+		"([^\t]+)\t--\tMode [^ ]+ [[][-]b+ ([^]]+)[]] by ([^ ]+)",
+		Unban, { ":time", ":target", ":nick" },
+	}, {
+		"([^\t]+)\t--\tNotice[(]([^)]+)[)]: (.+)",
+		Notice, { ":time", ":nick", ":message" },
+	}, {
+		"([^\t]+)\t [*]\t([^ ]+) (.+)",
+		Action, { ":time", ":nick", ":message" },
+	}, {
+		"([^\t]+)\t" P0_MODE "([^-][^\t]*)\t(.+)",
+		Privmsg, { ":time", ":nick", ":message" },
+	}
+};
 
 static const struct Matcher ZNC[] = {
 	{
@@ -254,6 +293,10 @@ static const struct Format {
 			"[0-9-]+[.]txt$"
 		),
 		1, 4, 0,
+	},
+	{
+		"weechat", WeeChat, ARRAY_LEN(WeeChat),
+		"irc[.](.+)[.]([^.]+)[.]weechatlog$", 1, 2, 0,
 	},
 	{
 		"znc", ZNC, ARRAY_LEN(ZNC),

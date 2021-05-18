@@ -1,4 +1,4 @@
-.Dd May 17, 2021
+.Dd May 18, 2021
 .Dt UNSCOOP 1
 .Os
 .
@@ -103,6 +103,23 @@ find Textual -type f -name '*.txt' \e
 	-not -path '*/Console/*' -print0 |
 xargs -0 unscoop -f textual
 .Ed
+.
+.It Fl f Cm weechat
+Import logs from the WeeChat IRC client.
+.Bd -literal -offset indent
+find ~/.weechat/logs -type f -name 'irc.*.weechatlog' \e
+	-not -name 'irc.server.*.weechatlog' -print0 |
+xargs -0 unscoop -f weechat
+.Ed
+.Pp
+.Nm
+is not able to correctly infer
+network and context names
+for channel names containing dots.
+Import these logs explicitly with
+.Fl N
+and
+.Fl c .
 .
 .It Fl f Cm znc
 Import logs from the
