@@ -218,6 +218,9 @@ static const struct Matcher WeeChat[] = {
 		"([^\t]+)\t--\tNotice[(]([^)]+)[)]: (.+)",
 		Notice, { ":time", ":nick", ":message" },
 	}, {
+		"([^\t]+)\t--\t([^ :]+): (.+)",
+		Notice, { ":time", ":nick", ":message" },
+	}, {
 		"([^\t]+)\t [*]\t([^ ]+) (.+)",
 		Action, { ":time", ":nick", ":message" },
 	}, {
