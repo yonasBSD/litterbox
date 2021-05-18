@@ -271,18 +271,19 @@ static const struct Format {
 	size_t network;
 	size_t context;
 	size_t date;
+	bool local;
 } Formats[] = {
 	{
 		"generic", Generic, ARRAY_LEN(Generic),
-		"([^/]+)/([^/]+)/[^/]+$", 1, 2, 0,
+		"([^/]+)/([^/]+)/[^/]+$", 1, 2, 0, false,
 	},
 	{
 		"catgirl", Catgirl, ARRAY_LEN(Catgirl),
-		"([^/]+)/([^/]+)/[0-9-]+[.]log$", 1, 2, 0,
+		"([^/]+)/([^/]+)/[0-9-]+[.]log$", 1, 2, 0, false,
 	},
 	{
 		"irc", IRC, ARRAY_LEN(IRC),
-		"^$", 0, 0, 0,
+		"^$", 0, 0, 0, false,
 	},
 	{
 		"textual", Textual, ARRAY_LEN(Textual),
@@ -292,15 +293,15 @@ static const struct Format {
 			"([^/]+)/"
 			"[0-9-]+[.]txt$"
 		),
-		1, 4, 0,
+		1, 4, 0, false,
 	},
 	{
 		"weechat", WeeChat, ARRAY_LEN(WeeChat),
-		"irc[.](.+)[.]([^.]+)[.]weechatlog$", 1, 2, 0,
+		"irc[.](.+)[.]([^.]+)[.]weechatlog$", 1, 2, 0, true,
 	},
 	{
 		"znc", ZNC, ARRAY_LEN(ZNC),
-		"([^/]+)/(moddata/log/)?([^/]+)/([0-9-]+)[.]log$", 1, 3, 4,
+		"([^/]+)/(moddata/log/)?([^/]+)/([0-9-]+)[.]log$", 1, 3, 4, true,
 	},
 };
 
@@ -353,6 +354,8 @@ static void prepareInsert(void) {
 			CASE
 			WHEN :time LIKE '%+____' OR :time LIKE '%-____' THEN
 				strftime('%s', substr(:time, 1, 22) || ':' || substr(:time, -2))
+			WHEN :local THEN
+				strftime('%s', coalesce(:date || ' ', "") || :time, 'utc')
 			ELSE
 				strftime('%s', coalesce(:date || ' ', "") || :time)
 			END,
@@ -384,6 +387,7 @@ matchLine(const struct Format *format, const regex_t *regex, const char *line) {
 			}
 		}
 
+		dbBindInt(insertEvent, ":local", format->local);
 		dbBindInt(insertEvent, ":type", matcher->type);
 		for (size_t i = 0; i < ARRAY_LEN(matcher->params); ++i) {
 			const char *param = matcher->params[i];
