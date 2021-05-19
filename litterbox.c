@@ -217,8 +217,10 @@ static void handleReplyMOTD(struct Message *msg) {
 	char *line = msg->params[1];
 	if (!strncmp(line, "- ", 2)) line += 2;
 	size_t len = strlen(line);
-	if (motd.len + len + 1 > motd.cap) {
-		motd.cap = (motd.cap ? motd.cap * 2 : len + 1);
+	size_t req = motd.len + len + 1;
+	if (req > motd.cap) {
+		if (!motd.cap) motd.cap = 1024;
+		while (req > motd.cap) motd.cap *= 2;
 		motd.buf = realloc(motd.buf, motd.cap);
 		if (!motd.buf) err(EX_OSERR, "realloc");
 	}
