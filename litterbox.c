@@ -432,6 +432,23 @@ static void insertEvent(
 	dbRun(stmt);
 }
 
+static enum Type messageType(struct Message *msg) {
+	if (msg->cmd[0] == 'N') return Notice;
+	if (strncmp(msg->params[1], "\1ACTION", 7)) return Privmsg;
+	if (msg->params[1][7] == ' ') {
+		msg->params[1] += 8;
+	} else if (msg->params[1][7] == '\1') {
+		msg->params[1] += 7;
+	} else {
+		return Privmsg;
+	}
+	size_t len = strlen(msg->params[1]);
+	if (msg->params[1][len - 1] == '\1') {
+		msg->params[1][len - 1] = '\0';
+	}
+	return Action;
+}
+
 static void handlePrivmsg(struct Message *msg) {
 	require(msg, true, 2);
 
@@ -440,14 +457,7 @@ static void handlePrivmsg(struct Message *msg) {
 	if (statusmsg) context += strspn(context, statusmsg);
 	if (strchr(chanTypes, context[0])) query = false;
 	if (!strcmp(context, self)) context = msg->nick;
-
-	enum Type type = (!strcmp(msg->cmd, "NOTICE") ? Notice : Privmsg);
-	char *message = msg->params[1];
-	if (!strncmp(message, "\1ACTION ", 8)) {
-		message += 8;
-		message[strcspn(message, "\1")] = '\0';
-		type = Action;
-	}
+	enum Type type = messageType(msg);
 
 	bool selfMessage = !strcmp(msg->nick, msg->params[0]);
 	if (query && searchQuery && type == Privmsg) {
@@ -460,7 +470,7 @@ static void handlePrivmsg(struct Message *msg) {
 
 	insertContext(context, query);
 	insertName(msg);
-	insertEvent(msg, type, context, NULL, message);
+	insertEvent(msg, type, context, NULL, msg->params[1]);
 }
 
 static void insertTopic(
