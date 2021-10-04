@@ -94,13 +94,13 @@ following their corresponding flags.
 The arguments are as follows:
 .
 .Bl -tag -width "-h host"
-.It Fl N Ar name , Cm network = Ar name
+.It Fl N Ar name | Cm network = Ar name
 Set the network name to be used
 if the server does not send
 .Sy RPL_ISUPPORT NETWORK .
 The default is the server hostname.
 .
-.It Fl Q , Cm public-query
+.It Fl Q | Cm public-query
 Enable the public search query interface.
 This allows anyone to perform searches
 in private messages to
@@ -117,7 +117,7 @@ The searchable columns are
 .Li target ,
 .Li message .
 .
-.It Fl U Ar url , Cm scooper-url = Ar url
+.It Fl U Ar url | Cm scooper-url = Ar url
 Set the base URL of a
 .Xr scooper 1
 instance
@@ -133,7 +133,7 @@ Perform a live database backup to
 and exit.
 This operation requires SQLite version 3.27.0 or newer.
 .
-.It Fl c Ar path , Cm cert = Ar path
+.It Fl c Ar path | Cm cert = Ar path
 Load the TLS client certificate from
 .Ar path
 and authenticate with SASL EXTERNAL,
@@ -146,24 +146,24 @@ If the private key is in a separate file,
 it is loaded with
 .Fl k .
 .
-.It Fl d Ar path , Cm database = Ar path
+.It Fl d Ar path | Cm database = Ar path
 Set the path to the database file.
 See
 .Sx FILES
 for the default paths.
 .
-.It Fl h Ar host , Cm host = Ar host
+.It Fl h Ar host | Cm host = Ar host
 Connect to
 .Ar host .
 .
 .It Fl i
 Initialize the database and exit.
 .
-.It Fl j Ar chan , Cm join = Ar chan
+.It Fl j Ar chan | Cm join = Ar chan
 Join the comma-separated list of channels
 .Ar chan .
 .
-.It Fl k Ar path , Cm priv = Ar path
+.It Fl k Ar path | Cm priv = Ar path
 Load the TLS client private key from
 .Ar path .
 The
@@ -171,7 +171,7 @@ The
 is searched for in the same manner
 as configuration files.
 .
-.It Fl l Ar limit , Cm limit = Ar limit
+.It Fl l Ar limit | Cm limit = Ar limit
 Limit the number of results
 in the search query interface
 enabled by
@@ -184,18 +184,18 @@ The default limit is 10.
 Migrate the database to the latest format
 and exit.
 .
-.It Fl n Ar nick , Cm nick = Ar nick
+.It Fl n Ar nick | Cm nick = Ar nick
 Set the nickname to
 .Ar nick .
 The default nickname is
 .Dq litterbox .
 .
-.It Fl p Ar port , Cm port = Ar port
+.It Fl p Ar port | Cm port = Ar port
 Connect to
 .Ar port .
 The default port is 6697.
 .
-.It Fl q , Cm private-query
+.It Fl q | Cm private-query
 Enable the private search query interface.
 When connected to
 .Xr pounce 1 ,
@@ -214,7 +214,7 @@ The searchable columns are
 .Li target ,
 .Li message .
 .
-.It Fl t Ar path , Cm trust = Ar path
+.It Fl t Ar path | Cm trust = Ar path
 Trust the self-signed certificate loaded from
 .Ar path
 and disable server name verification.
@@ -223,17 +223,17 @@ The
 is searched for in the same manner
 as configuration files.
 .
-.It Fl u Ar user , Cm user = Ar user
+.It Fl u Ar user | Cm user = Ar user
 Set the username to
 .Ar user .
 The default username is the same as the nickname.
 .
-.It Fl v , Cm verbose
+.It Fl v | Cm verbose
 Write sent and received IRC messages
 as well as SQL INSERT statements
 to standard error.
 .
-.It Fl w Ar pass , Cm pass = Ar pass
+.It Fl w Ar pass | Cm pass = Ar pass
 Log in with the server password
 .Ar pass .
 .El
