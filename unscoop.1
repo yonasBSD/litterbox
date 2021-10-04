@@ -64,7 +64,21 @@ which must have been initialized by
 The default path is as in
 .Xr litterbox 1 .
 .
-.It Fl f Cm catgirl
+.It Fl f Ar format
+Set the input log format.
+The default is
+.Cm generic .
+.
+.It Fl v
+Print SQL
+.Sy INSERT
+statements on standard error.
+.El
+.
+.Pp
+The formats are as follows:
+.Bl -tag -width Ds
+.It Cm catgirl
 Import logs from the
 .Xr catgirl 1
 IRC client.
@@ -74,9 +88,8 @@ find ~/.local/share/catgirl/log \e
 xargs -0 unscoop -f catgirl
 .Ed
 .
-.It Fl f Cm generic
+.It Cm generic
 Import logs using generic matchers.
-This is the default.
 Network and context names are inferred
 from paths of the form
 .Pa network/context/* .
@@ -87,7 +100,7 @@ Events of the following formats are matched:
 [timestamp] * nick action
 .Ed
 .
-.It Fl f Cm irc
+.It Cm irc
 Import logs formatted as
 IRC protocol messages tagged with
 .Sy server-time .
@@ -96,7 +109,7 @@ The network and context must be set with
 and
 .Fl c .
 .
-.It Fl f Cm textual
+.It Cm textual
 Import logs from the Textual IRC client.
 .Bd -literal -offset indent
 find Textual -type f -name '*.txt' \e
@@ -104,7 +117,7 @@ find Textual -type f -name '*.txt' \e
 xargs -0 unscoop -f textual
 .Ed
 .
-.It Fl f Cm weechat
+.It Cm weechat
 Import logs from the WeeChat IRC client.
 .Bd -literal -offset indent
 find ~/.weechat/logs -type f -name 'irc.*.weechatlog' \e
@@ -121,7 +134,7 @@ Import these logs explicitly with
 and
 .Fl c .
 .
-.It Fl f Cm znc
+.It Cm znc
 Import logs from the
 .Xr znc 1
 .Sy log
@@ -134,11 +147,6 @@ find ~/.znc/moddata/log \e
 	-not -path '*/status/*' -print0 |
 xargs -0 unscoop -f znc
 .Ed
-.
-.It Fl v
-Print SQL
-.Sy INSERT
-statements on standard error.
 .El
 .
 .Sh SEE ALSO
