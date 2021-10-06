@@ -869,13 +869,9 @@ int main(int argc, char *argv[]) {
 	client = tls_client();
 	if (!client) errx(EX_SOFTWARE, "tls_client");
 
+	int error;
 	struct tls_config *config = tls_config_new();
 	if (!config) errx(EX_SOFTWARE, "tls_config_new");
-
-	int error = tls_config_set_ciphers(config, "compat");
-	if (error) {
-		errx(EX_SOFTWARE, "tls_config_set_ciphers: %s", tls_config_error(config));
-	}
 
 	if (insecure) {
 		tls_config_insecure_noverifycert(config);
