@@ -41,11 +41,10 @@
 #define SQL(...) #__VA_ARGS__
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
-const char *configPath(const char **dirs, const char *path);
-const char *dataPath(const char **dirs, const char *path);
+char *configPath(char *buf, size_t cap, const char *path, int i);
+char *dataPath(char *buf, size_t cap, const char *path, int i);
 FILE *configOpen(const char *path, const char *mode);
 FILE *dataOpen(const char *path, const char *mode);
-void dataMkdir(const char *path);
 int getopt_config(
 	int argc, char *const *argv, const char *optstring,
 	const struct option *longopts, int *longindex
@@ -114,13 +113,14 @@ static inline void dbFind(const char *path, int flags) {
 		errx(EX_NOINPUT, "%s: database not found", path);
 	}
 
+	char buf[PATH_MAX];
 	if (flags & SQLITE_OPEN_CREATE) {
-		dataMkdir("");
+		int error = mkdir(dataPath(buf, sizeof(buf), "", 0), S_IRWXU);
+		if (error && errno != EEXIST) err(EX_CANTCREAT, "%s", buf);
 	}
 
-	const char *dirs = NULL;
-	while (NULL != (path = dataPath(&dirs, DatabasePath))) {
-		dbOpen(path, flags);
+	for (int i = 0; dataPath(buf, sizeof(buf), DatabasePath, i); ++i) {
+		dbOpen(buf, flags);
 		if (db) return;
 	}
 	errx(EX_NOINPUT, "database not found; initialize it with litterbox -i");

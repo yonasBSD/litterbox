@@ -766,7 +766,7 @@ static void quit(int sig) {
 int main(int argc, char *argv[]) {
 	bool init = false;
 	bool migrate = false;
-	const char *path = NULL;
+	const char *dbPath = NULL;
 	const char *backup = NULL;
 
 	bool insecure = false;
@@ -816,7 +816,7 @@ int main(int argc, char *argv[]) {
 			break; case 'U': scooperURL = optarg;
 			break; case 'b': backup = optarg;
 			break; case 'c': cert = optarg;
-			break; case 'd': path = optarg;
+			break; case 'd': dbPath = optarg;
 			break; case 'h': host = optarg;
 			break; case 'i': init = true;
 			break; case 'j': join = optarg;
@@ -841,7 +841,7 @@ int main(int argc, char *argv[]) {
 
 	int flags = SQLITE_OPEN_READWRITE;
 	if (init) flags |= SQLITE_OPEN_CREATE;
-	dbFind(path, flags);
+	dbFind(dbPath, flags);
 	atexit(atExit);
 
 	if (init) {
@@ -870,6 +870,7 @@ int main(int argc, char *argv[]) {
 	if (!client) errx(EX_SOFTWARE, "tls_client");
 
 	int error;
+	char path[PATH_MAX];
 	struct tls_config *config = tls_config_new();
 	if (!config) errx(EX_SOFTWARE, "tls_config_new");
 
@@ -879,8 +880,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (trust) {
 		tls_config_insecure_noverifyname(config);
-		const char *dirs = NULL;
-		while (NULL != (path = configPath(&dirs, trust))) {
+		for (int i = 0; configPath(path, sizeof(path), trust, i); ++i) {
 			error = tls_config_set_ca_file(config, path);
 			if (!error) break;
 		}
@@ -888,8 +888,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (cert) {
-		const char *dirs = NULL;
-		while (NULL != (path = configPath(&dirs, cert))) {
+		for (int i = 0; configPath(path, sizeof(path), cert, i); ++i) {
 			if (priv) {
 				error = tls_config_set_cert_file(config, path);
 			} else {
@@ -900,8 +899,7 @@ int main(int argc, char *argv[]) {
 		if (error) errx(EX_NOINPUT, "%s: %s", cert, tls_config_error(config));
 	}
 	if (priv) {
-		const char *dirs = NULL;
-		while (NULL != (path = configPath(&dirs, priv))) {
+		for (int i = 0; configPath(path, sizeof(path), priv, i); ++i) {
 			error = tls_config_set_key_file(config, path);
 			if (!error) break;
 		}
