@@ -752,8 +752,8 @@ static void handle(struct Message *msg) {
 }
 
 static void atExit(void) {
-	if (client) tls_close(client);
 	dbClose();
+	if (client) tls_close(client);
 }
 
 static void quit(int sig) {
