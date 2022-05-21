@@ -752,6 +752,7 @@ static void handle(struct Message *msg) {
 }
 
 static void atExit(void) {
+	dbExec(SQL(PRAGMA optimize;));
 	dbClose();
 	if (client) tls_close(client);
 }

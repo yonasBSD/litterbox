@@ -152,7 +152,6 @@ static inline void dbClose(void) {
 		free(persist);
 		persist = prev;
 	}
-	dbExec(SQL(PRAGMA optimize;));
 	sqlite3_close(db);
 }
 

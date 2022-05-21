@@ -529,7 +529,7 @@ int main(int argc, char *argv[]) {
 		binds[n++] = Bind(":limit", limit, 0);
 	}
 
-	dbFind(path, SQLITE_OPEN_READWRITE);
+	dbFind(path, SQLITE_OPEN_READONLY);
 	if (dbVersion() != DatabaseVersion) {
 		errx(EX_CONFIG, "database out of date; migrate with litterbox -m");
 	}
