@@ -533,6 +533,8 @@ int main(int argc, char *argv[]) {
 		}
 
 		for (ssize_t len; 0 < (len = getline(&line, &cap, file));) {
+			if (len >= 1 && line[len-1] == '\n') line[len-1] = '\0';
+			if (len >= 2 && line[len-2] == '\r') line[len-2] = '\0';
 			matchLine(format, regex, line);
 			sizeRead += len;
 			if (100 * sizeRead / sizeTotal != sizePercent) {
